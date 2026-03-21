@@ -220,6 +220,13 @@
       flex-shrink: 0;
       font-weight: 600;
     }
+    .vessel-coords {
+      font-family: 'Inconsolata', monospace;
+      font-size: 9px;
+      color: var(--ink-faint);
+      margin-top: 2px;
+      letter-spacing: .04em;
+    }
 
     /* ── MAP ── */
     .map-wrapper {
@@ -606,15 +613,20 @@ let cfg = { proxyUrl: localStorage.getItem(STORE.proxy) || '' };
 // ── MAP ───────────────────────────────────────────────────────────────────────
 const map = L.map('map', { center:[25,-70], zoom:4, zoomControl:true });
 
-// NOAA nautical chart tiles
+// OpenStreetMap base — always loads everywhere, good ocean coverage
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: 'Base: &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
+  maxZoom: 18,
+}).addTo(map);
+
+// NOAA ENC overlay on top — traditional paper chart symbology over US coastal waters
 L.tileLayer(
   'https://gis.charttools.noaa.gov/arcgis/rest/services/MarineChart_Services/NOAACharts/MapServer/WMTS/tile/1.0.0/MarineChart_Services_NOAACharts/default/GoogleMapsCompatible/{z}/{y}/{x}.png',
   {
-    attribution: 'Chart: <a href="https://nauticalcharts.noaa.gov">NOAA Office of Coast Survey</a> | AIS: <a href="https://www.myshiptracking.com">MyShipTracking</a>',
-    maxZoom: 18,
-    minZoom: 2,
-    // Fallback to OpenStreetMap tiles if NOAA tile is missing (open ocean, etc.)
-    errorTileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: ' | Chart: <a href="https://nauticalcharts.noaa.gov">NOAA ENC</a> | AIS: <a href="https://www.myshiptracking.com">MyShipTracking</a>',
+    maxZoom: 18, minZoom: 3,
+    opacity: 1,
+    errorTileUrl: '',
   }
 ).addTo(map);
 
@@ -721,6 +733,7 @@ function renderSidebar(list) {
       <div class="vessel-info">
         <div class="vessel-name">${v.name}</div>
         <div class="vessel-status">${v.navStatus}${tag}</div>
+        ${hasPos ? `<div class="vessel-coords">${v.lat.toFixed(3)}°, ${v.lon.toFixed(3)}°</div>` : ''}
       </div>
       <div class="vessel-speed">${hasPos ? v.speed+'kn' : '—'}</div>
     </div>`;
