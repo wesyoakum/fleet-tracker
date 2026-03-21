@@ -578,23 +578,29 @@
     <div id="map"></div>
     <div style="position:absolute;top:10px;left:50px;z-index:500;display:flex;flex-direction:column;gap:6px;">
       <button id="noaa-btn" onclick="toggleNOAA()" title="Toggle NOAA chart" style="
-        background:var(--paper);border:1px solid var(--green-mark);
-        color:var(--green-mark);padding:4px 10px;
-        font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
-        cursor:pointer;transition:all .2s;white-space:nowrap;
-      ">NOAA: ON</button>
-      <button id="osm-btn" onclick="toggleOSM()" title="Toggle OpenSeaMap" style="
-        background:var(--paper);border:1px solid var(--border);
+        background:var(--paper);border:1px solid var(--border-light);
         color:var(--ink-faint);padding:4px 10px;
         font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
         cursor:pointer;transition:all .2s;white-space:nowrap;
-      ">SeaMap: OFF</button>
+      ">NOAA: OFF</button>
+      <button id="osm-btn" onclick="toggleOSM()" title="Toggle OpenSeaMap" style="
+        background:var(--paper);border:1px solid var(--chart-blue);
+        color:var(--chart-blue);padding:4px 10px;
+        font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
+        cursor:pointer;transition:all .2s;white-space:nowrap;
+      ">SeaMap: ON</button>
       <button onclick="zoomExtents()" title="Zoom to fleet" style="
         background:var(--paper);border:1px solid var(--border);
         color:var(--ink-light);padding:4px 10px;
         font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
         cursor:pointer;transition:all .2s;white-space:nowrap;
       ">⌂ Extents</button>
+      <button id="refresh-btn" onclick="manualRefresh()" title="Refresh vessel positions" style="
+        background:var(--paper);border:1px solid var(--border);
+        color:var(--ink-light);padding:4px 10px;
+        font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
+        cursor:pointer;transition:all .2s;white-space:nowrap;
+      ">↻ Refresh</button>
     </div>
     <div class="loading-overlay" id="loading">
       <div class="loading-box">⟳ Fetching AIS data…</div>
@@ -608,7 +614,7 @@
   <div class="statusbar-item">Last fix: <span id="last-update">—</span></div>
   <div class="statusbar-item">Chart: <span>NOAA ENC</span></div>
   <div class="statusbar-item">AIS: <span>MyShipTracking</span></div>
-  <div class="statusbar-item">Refresh: <span>5 min</span></div>
+  <div class="statusbar-item">Refresh: <span>60 min</span></div>
   <div class="statusbar-item" id="api-status-bar">Proxy: <span style="color:var(--gold)">Not configured</span></div>
 </div>
 
@@ -665,15 +671,16 @@ const noaaLayer = new NOAALayer({
   opacity: 1,
   errorTileUrl: '',
 });
-noaaLayer.addTo(map);
-let noaaVisible = true;
+// NOAA off by default
+let noaaVisible = false;
 
-// OpenSeaMap — nautical marks overlay on top of OSM
+// OpenSeaMap on by default
 const osmLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
   attribution: ' | Nautical marks: <a href="https://www.openseamap.org">OpenSeaMap</a>',
   maxZoom: 18, minZoom: 3, opacity: 1,
 });
-let osmVisible = false;
+osmLayer.addTo(map);
+let osmVisible = true;
 
 let vessels=[], markers={}, activeMMSI=null, refreshTimer=null;
 
@@ -809,7 +816,7 @@ async function loadVessels() {
 
 function startAutoRefresh() {
   clearInterval(refreshTimer);
-  if (cfg.proxyUrl) refreshTimer = setInterval(loadVessels, 5*60*1000);
+  if (cfg.proxyUrl) refreshTimer = setInterval(loadVessels, 60*60*1000);
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────────
@@ -868,6 +875,16 @@ function toggleOSM() {
   btn.textContent = osmVisible ? 'SeaMap: ON' : 'SeaMap: OFF';
   btn.style.color = osmVisible ? 'var(--chart-blue)' : 'var(--ink-faint)';
   btn.style.borderColor = osmVisible ? 'var(--chart-blue)' : 'var(--border-light)';
+}
+
+function manualRefresh() {
+  const btn = document.getElementById('refresh-btn');
+  btn.textContent = '↻ …';
+  btn.style.color = 'var(--chart-blue)';
+  loadVessels().then(() => {
+    btn.textContent = '↻ Refresh';
+    btn.style.color = 'var(--ink-light)';
+  });
 }
 
 function zoomExtents() {
