@@ -52,7 +52,7 @@
     .vessel-status { font-family:'Source Code Pro',monospace; font-size:10px; color:var(--muted); margin-top:2px; }
     .vessel-speed { font-family:'Source Code Pro',monospace; font-size:11px; color:var(--teal-light); flex-shrink:0; }
 
-    #map { flex:1; }
+    #map { flex:1; width:100%; height:100%; }
     .leaflet-container { background:#0d2137; }
     .leaflet-control-zoom a { background:var(--navy-mid)!important; color:var(--cream)!important; border-color:var(--navy-light)!important; }
     .leaflet-control-zoom a:hover { background:var(--navy-light)!important; }
@@ -135,8 +135,8 @@
       <div class="empty-msg">Click ⚙ CONFIG<br>to connect your<br>Cloudflare Worker proxy</div>
     </div>
   </div>
-  <div style="flex:1;position:relative;">
-    <div id="map"></div>
+  <div style="flex:1;position:relative;display:flex;flex-direction:column;">
+    <div id="map" style="flex:1;"></div>
     <div class="loading-overlay" id="loading">
       <div class="loading-box">⟳ FETCHING AIS DATA…</div>
     </div>
