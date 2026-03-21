@@ -1,825 +1,191 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fleet Tracker — Vessel Locations</title>
-  <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inconsolata:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    :root {
-      --paper: #f2ead8;
-      --paper-dark: #e8ddc4;
-      --paper-darker: #d9cdb0;
-      --ink: #1a1a2e;
-      --ink-mid: #2c2c4a;
-      --ink-light: #4a4a6a;
-      --ink-faint: #8888a8;
-      --chart-blue: #3a6ea8;
-      --chart-blue-light: #6a9fd8;
-      --chart-water: #ccdff0;
-      --red: #b03a2e;
-      --green-mark: #1a6644;
-      --gold: #8b6914;
-      --gold-light: #c4972a;
-      --border: #8b7355;
-      --border-light: #b8a882;
+// ============================================================
+//  FleetTrack — MyShipTracking Scraper (Cloudflare Worker)
+// ============================================================
+
+const ALLOWED_ORIGIN = "https://wesyoakum.github.io";
+
+const VESSELS = [
+  { name: "Connor Bordelon",    mmsi: "367583170", slug: "connor-bordelon-mmsi-367583170-imo-9670626"      },
+  { name: "Grand Canyon",       mmsi: "257031820", slug: "grand-canyon-mmsi-257031820-imo-9614608"         },
+  { name: "Grand Canyon II",    mmsi: "257038580", slug: "grand-canyon-ii-mmsi-257038580-imo-9653874"      },
+  { name: "Grant Candies",      mmsi: "368001000", slug: "grant-candies-mmsi-368001000-imo-9481374"        },
+  { name: "Kilo Moana",         mmsi: "369565000", slug: "kilo-moana-mmsi-369565000-imo-9229037"           },
+  { name: "Mary Sears",         mmsi: "303859000", slug: "mary-sears-mmsi-303859000-imo-9207077"           },
+  { name: "Nautilus",           mmsi: "367596000", slug: "nautilus-mmsi-367596000-imo-9286947"             },
+  { name: "Ross Candies",       mmsi: "367426260", slug: "ross-candies-mmsi-367426260-imo-9481506"         },
+  { name: "Shelia Bordelon",    mmsi: "367655260", slug: "shelia-bordelon-mmsi-367655260-imo-9670638"      },
+  { name: "Skandi Constructor", mmsi: "257220000", slug: "skandi-constructor-mmsi-257220000-imo-0"         },
+];
+
+export default {
+  async fetch(request) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders() });
     }
 
-    * { margin:0; padding:0; box-sizing:border-box; }
+    const url = new URL(request.url);
 
-    body {
-      font-family: 'Libre Baskerville', serif;
-      background: var(--paper);
-      color: var(--ink);
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+    if (url.pathname === "/vessels") {
+      const results = await Promise.all(VESSELS.map(v => scrapeVessel(v)));
+      return new Response(JSON.stringify(results), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders() },
+      });
     }
 
-    /* ── HEADER ── */
-    header {
-      background: var(--paper-dark);
-      border-bottom: 2px solid var(--border);
-      padding: 0 28px;
-      height: 62px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-      z-index: 1000;
-      position: relative;
-    }
-    /* Top rule decoration */
-    header::before {
-      content: '';
-      position: absolute;
-      top: 3px; left: 0; right: 0;
-      height: 1px;
-      background: var(--border-light);
+    if (url.pathname === "/") {
+      return new Response(
+        JSON.stringify({ status: "ok", service: "FleetTrack Scraper", vessels: VESSELS.length }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders() } }
+      );
     }
 
-    .logo { display:flex; align-items:center; gap:14px; }
-    .logo-icon {
-      width: 38px; height: 38px;
-      border: 2px solid var(--border);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
-      background: var(--paper);
-      box-shadow: inset 0 1px 3px rgba(0,0,0,.15);
-    }
-    .logo-text {
-      font-family: 'IM Fell English', serif;
-      font-size: 22px;
-      color: var(--ink);
-      letter-spacing: .04em;
-    }
-    .logo-text span { color: var(--chart-blue); }
-    .logo-sub {
-      font-family: 'Inconsolata', monospace;
-      font-size: 9px;
-      letter-spacing: .2em;
-      color: var(--ink-faint);
-      text-transform: uppercase;
-      margin-top: 1px;
-    }
+    return new Response(JSON.stringify({ error: "Not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json", ...corsHeaders() },
+    });
+  },
+};
 
-    .header-right { display:flex; align-items:center; gap:20px; }
+// ── Scrape a single vessel page ───────────────────────────────────────────────
+async function scrapeVessel(vessel) {
+  const pageUrl = `https://www.myshiptracking.com/vessels/${vessel.slug}`;
 
-    .live-badge {
-      display: flex; align-items: center; gap: 7px;
-      font-family: 'Inconsolata', monospace;
-      font-size: 11px;
-      color: var(--green-mark);
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      border: 1px solid var(--green-mark);
-      padding: 3px 10px;
-      border-radius: 2px;
-      background: rgba(26,102,68,.06);
-    }
-    .live-dot {
-      width: 7px; height: 7px;
-      background: var(--green-mark);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
-
-    .vessel-count {
-      font-family: 'Inconsolata', monospace;
-      font-size: 11px;
-      color: var(--ink-light);
-      letter-spacing: .1em;
-      text-transform: uppercase;
-    }
-    .vessel-count strong { color: var(--chart-blue); font-weight: 700; }
-
-    .cfg-btn {
-      background: var(--paper);
-      border: 1px solid var(--border);
-      color: var(--ink-light);
-      padding: 6px 14px;
-      font-family: 'Inconsolata', monospace;
-      font-size: 11px;
-      letter-spacing: .1em;
-      cursor: pointer;
-      transition: all .2s;
-      text-transform: uppercase;
-    }
-    .cfg-btn:hover { border-color: var(--chart-blue); color: var(--chart-blue); background: var(--chart-water); }
-
-    /* ── MAIN ── */
-    .main { display:flex; flex:1; overflow:hidden; }
-
-    /* ── SIDEBAR ── */
-    .sidebar {
-      width: 272px;
-      background: var(--paper-dark);
-      border-right: 2px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-    .sidebar-header {
-      padding: 16px 18px 14px;
-      border-bottom: 1px solid var(--border-light);
-      background: var(--paper-darker);
-    }
-    .sidebar-title {
-      font-family: 'Inconsolata', monospace;
-      font-size: 9px;
-      letter-spacing: .2em;
-      color: var(--ink-faint);
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-    .search-box {
-      background: var(--paper);
-      border: 1px solid var(--border-light);
-      padding: 7px 11px;
-      color: var(--ink);
-      font-family: 'Libre Baskerville', serif;
-      font-size: 12px;
-      width: 100%;
-      outline: none;
-      transition: border-color .2s;
-    }
-    .search-box::placeholder { color: var(--ink-faint); font-style: italic; }
-    .search-box:focus { border-color: var(--chart-blue); }
-
-    .vessel-list { flex:1; overflow-y:auto; padding:4px 0; }
-    .vessel-list::-webkit-scrollbar { width:5px; }
-    .vessel-list::-webkit-scrollbar-track { background: var(--paper-darker); }
-    .vessel-list::-webkit-scrollbar-thumb { background: var(--border-light); }
-
-    .vessel-item {
-      padding: 11px 18px;
-      cursor: pointer;
-      border-left: 3px solid transparent;
-      border-bottom: 1px solid var(--paper-darker);
-      transition: all .15s;
-      display: flex; align-items: center; gap: 11px;
-    }
-    .vessel-item:hover { background: var(--chart-water); }
-    .vessel-item.active {
-      background: rgba(58,110,168,.1);
-      border-left-color: var(--chart-blue);
-    }
-    .vessel-dot-sm {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      border: 1.5px solid rgba(0,0,0,.25);
-      flex-shrink: 0;
-    }
-    .vessel-info { flex:1; min-width:0; }
-    .vessel-name {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--ink);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      letter-spacing: .01em;
-    }
-    .vessel-status {
-      font-family: 'Inconsolata', monospace;
-      font-size: 10px;
-      color: var(--ink-faint);
-      margin-top: 2px;
-      letter-spacing: .04em;
-    }
-    .vessel-speed {
-      font-family: 'Inconsolata', monospace;
-      font-size: 11px;
-      color: var(--chart-blue);
-      flex-shrink: 0;
-      font-weight: 600;
-    }
-    .vessel-coords {
-      font-family: 'Inconsolata', monospace;
-      font-size: 9px;
-      color: var(--ink-faint);
-      margin-top: 2px;
-      letter-spacing: .04em;
-    }
-
-    /* ── MAP ── */
-    .map-wrapper {
-      flex: 1;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-    }
-    #map { flex:1; width:100%; height:100%; }
-
-    /* Leaflet overrides for paper chart theme */
-    .leaflet-control-zoom a {
-      background: var(--paper) !important;
-      color: var(--ink) !important;
-      border-color: var(--border) !important;
-      font-family: 'Libre Baskerville', serif !important;
-    }
-    .leaflet-control-zoom a:hover { background: var(--paper-dark) !important; }
-    .leaflet-control-attribution {
-      background: rgba(242,234,216,.85) !important;
-      color: var(--ink-faint) !important;
-      font-size: 10px !important;
-      font-family: 'Inconsolata', monospace !important;
-      border-top: 1px solid var(--border-light) !important;
-    }
-    .leaflet-control-attribution a { color: var(--chart-blue) !important; }
-
-    /* ── VESSEL POPUP ── */
-    .vessel-popup {
-      background: var(--paper);
-      border: 1.5px solid var(--border);
-      width: 250px;
-      box-shadow: 3px 3px 0 var(--border-light), 0 8px 24px rgba(0,0,0,.2);
-      position: relative;
-    }
-    .vessel-popup::before {
-      content: '';
-      position: absolute;
-      top: 4px; left: 4px; right: 4px; bottom: 4px;
-      border: 1px solid var(--border-light);
-      pointer-events: none;
-      z-index: 1;
-    }
-    .popup-header {
-      background: var(--paper-darker);
-      border-bottom: 1.5px solid var(--border);
-      padding: 10px 14px;
-    }
-    .popup-vessel-name {
-      font-family: 'IM Fell English', serif;
-      font-size: 17px;
-      color: var(--ink);
-      letter-spacing: .02em;
-    }
-    .popup-vessel-type {
-      font-family: 'Inconsolata', monospace;
-      font-size: 9px;
-      letter-spacing: .15em;
-      color: var(--ink-faint);
-      text-transform: uppercase;
-      margin-top: 2px;
-    }
-    .popup-body { padding: 12px 14px 14px; }
-    .popup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-    .popup-stat label {
-      font-family: 'Inconsolata', monospace;
-      font-size: 8px;
-      letter-spacing: .18em;
-      color: var(--ink-faint);
-      text-transform: uppercase;
-      display: block;
-      margin-bottom: 2px;
-    }
-    .popup-stat value {
-      font-family: 'Inconsolata', monospace;
-      font-size: 12px;
-      color: var(--chart-blue);
-      font-weight: 600;
-    }
-    .popup-divider {
-      height: 1px;
-      background: var(--border-light);
-      margin: 10px 0;
-    }
-    .popup-status-bar {
-      display: flex; align-items: center; gap: 6px;
-    }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink:0; }
-    .popup-status-text {
-      font-family: 'Inconsolata', monospace;
-      font-size: 10px;
-      letter-spacing: .08em;
-    }
-    .popup-mmsi {
-      margin-left: auto;
-      font-family: 'Inconsolata', monospace;
-      font-size: 9px;
-      color: var(--ink-faint);
-      letter-spacing: .06em;
-    }
-    .popup-coverage {
-      font-family: 'Inconsolata', monospace;
-      font-size: 9px;
-      color: var(--gold);
-      letter-spacing: .06em;
-      margin-top: 7px;
-      font-style: italic;
-    }
-    .popup-link {
-      display: block;
-      margin-top: 9px;
-      font-family: 'Inconsolata', monospace;
-      font-size: 10px;
-      color: var(--chart-blue);
-      text-decoration: none;
-      letter-spacing: .06em;
-      border-top: 1px solid var(--border-light);
-      padding-top: 8px;
-    }
-    .popup-link:hover { color: var(--red); }
-
-    .leaflet-popup-content-wrapper { background:transparent!important; border:none!important; box-shadow:none!important; padding:0!important; }
-    .leaflet-popup-content { margin:0!important; }
-    .leaflet-popup-tip-container { display:none; }
-    .leaflet-popup-close-button {
-      color: var(--ink-faint) !important;
-      top: 7px !important; right: 7px !important;
-      z-index: 10;
-      font-size: 18px !important;
-    }
-    .leaflet-popup-close-button:hover { color: var(--red) !important; }
-
-    /* ── STATUS BAR ── */
-    .statusbar {
-      height: 26px;
-      background: var(--paper-darker);
-      border-top: 2px solid var(--border);
-      display: flex; align-items: center;
-      padding: 0 20px; gap: 28px;
-      flex-shrink: 0;
-    }
-    .statusbar-item {
-      font-family: 'Inconsolata', monospace;
-      font-size: 10px;
-      color: var(--ink-faint);
-      letter-spacing: .1em;
-      text-transform: uppercase;
-    }
-    .statusbar-item span { color: var(--chart-blue); }
-
-    /* ── LOADING ── */
-    .loading-overlay {
-      position: absolute; inset: 0;
-      background: rgba(242,234,216,.75);
-      z-index: 500;
-      display: none; align-items: center; justify-content: center;
-    }
-    .loading-overlay.show { display:flex; }
-    .loading-box {
-      background: var(--paper);
-      border: 1.5px solid var(--border);
-      padding: 18px 32px;
-      font-family: 'Inconsolata', monospace;
-      font-size: 12px;
-      color: var(--chart-blue);
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      box-shadow: 3px 3px 0 var(--border-light);
-    }
-
-    /* ── ERROR BANNER ── */
-    .error-banner {
-      display: none;
-      background: rgba(176,58,46,.08);
-      border: 1px solid rgba(176,58,46,.3);
-      margin: 10px 14px 4px;
-      padding: 9px 12px;
-      font-size: 11px;
-      color: var(--red);
-      line-height: 1.5;
-      font-family: 'Inconsolata', monospace;
-    }
-    .error-banner.show { display:block; }
-    .empty-msg {
-      padding: 28px 18px;
-      text-align: center;
-      color: var(--ink-faint);
-      font-size: 12px;
-      font-style: italic;
-      line-height: 2;
-    }
-
-    /* ── MODAL ── */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(26,26,46,.6);
-      z-index: 2000;
-      display: none; align-items: center; justify-content: center;
-    }
-    .modal-overlay.open { display:flex; }
-    .modal {
-      background: var(--paper);
-      border: 2px solid var(--border);
-      width: 520px; max-width: 95vw;
-      padding: 32px;
-      max-height: 90vh; overflow-y: auto;
-      box-shadow: 6px 6px 0 var(--border-light), 0 20px 60px rgba(0,0,0,.35);
-      position: relative;
-    }
-    .modal::before {
-      content: '';
-      position: absolute;
-      top: 6px; left: 6px; right: 6px; bottom: 6px;
-      border: 1px solid var(--border-light);
-      pointer-events: none;
-    }
-    .modal h2 {
-      font-family: 'IM Fell English', serif;
-      font-size: 24px;
-      color: var(--ink);
-      margin-bottom: 6px;
-    }
-    .modal > p {
-      font-size: 13px;
-      color: var(--ink-light);
-      margin-bottom: 24px;
-      line-height: 1.7;
-      font-style: italic;
-    }
-    .modal label {
-      display: block;
-      font-family: 'Inconsolata', monospace;
-      font-size: 9px;
-      letter-spacing: .18em;
-      color: var(--ink-faint);
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-    .modal input {
-      width: 100%;
-      background: white;
-      border: 1px solid var(--border-light);
-      padding: 9px 12px;
-      color: var(--ink);
-      font-family: 'Inconsolata', monospace;
-      font-size: 13px;
-      outline: none;
-      margin-bottom: 16px;
-      transition: border-color .2s;
-    }
-    .modal input:focus { border-color: var(--chart-blue); }
-    .modal-note {
-      background: rgba(58,110,168,.06);
-      border: 1px solid rgba(58,110,168,.25);
-      padding: 12px 14px;
-      font-size: 12px;
-      color: var(--ink-light);
-      line-height: 1.7;
-      margin-bottom: 20px;
-      font-style: italic;
-    }
-    .modal-note strong { color: var(--chart-blue); font-style: normal; }
-    .modal-btns { display:flex; gap:10px; justify-content:flex-end; margin-top:8px; }
-    .btn-cancel {
-      background: transparent;
-      border: 1px solid var(--border-light);
-      color: var(--ink-light);
-      padding: 9px 20px;
-      font-family: 'Libre Baskerville', serif;
-      font-size: 13px;
-      cursor: pointer; transition: all .2s;
-    }
-    .btn-cancel:hover { border-color: var(--border); color: var(--ink); }
-    .btn-save {
-      background: var(--chart-blue);
-      border: none;
-      color: white;
-      padding: 9px 24px;
-      font-family: 'Libre Baskerville', serif;
-      font-size: 13px; font-weight: 700;
-      cursor: pointer; transition: background .2s;
-    }
-    .btn-save:hover { background: var(--ink-mid); }
-    .btn-test {
-      background: transparent;
-      border: 1px solid var(--chart-blue);
-      color: var(--chart-blue);
-      padding: 9px 18px;
-      font-family: 'Libre Baskerville', serif;
-      font-size: 13px;
-      cursor: pointer; transition: all .2s;
-    }
-    .btn-test:hover { background: var(--chart-water); }
-    .test-result {
-      font-family: 'Inconsolata', monospace;
-      font-size: 11px;
-      padding: 8px 12px;
-      margin-bottom: 16px;
-      display: none;
-    }
-    .test-result.ok  { background:rgba(26,102,68,.08); border:1px solid rgba(26,102,68,.3); color:var(--green-mark); display:block; }
-    .test-result.err { background:rgba(176,58,46,.08); border:1px solid rgba(176,58,46,.3); color:var(--red); display:block; }
-  </style>
-</head>
-<body>
-
-<!-- HEADER -->
-<header>
-  <div class="logo">
-    <div class="logo-icon">⚓</div>
-    <div>
-      <div class="logo-text">Fleet<span>Track</span></div>
-      <div class="logo-sub">Vessel Position System</div>
-    </div>
-  </div>
-  <div class="header-right">
-    <div class="live-badge"><div class="live-dot"></div>AIS Live</div>
-    <div class="vessel-count">Vessels on chart: <strong id="vessel-count">0</strong></div>
-    <button class="cfg-btn" onclick="openModal()">⚙ Configure</button>
-  </div>
-</header>
-
-<!-- MAIN -->
-<div class="main">
-
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-title">Tracked Fleet</div>
-      <input class="search-box" type="text" placeholder="Search vessel…" oninput="filterVessels(this.value)" />
-    </div>
-    <div id="error-banner" class="error-banner"></div>
-    <div class="vessel-list" id="vessel-list">
-      <div class="empty-msg">Configure the proxy<br>to chart your fleet</div>
-    </div>
-  </div>
-
-  <!-- MAP -->
-  <div class="map-wrapper">
-    <div id="map"></div>
-    <div class="loading-overlay" id="loading">
-      <div class="loading-box">⟳ Fetching AIS data…</div>
-    </div>
-  </div>
-
-</div>
-
-<!-- STATUS BAR -->
-<div class="statusbar">
-  <div class="statusbar-item">Last fix: <span id="last-update">—</span></div>
-  <div class="statusbar-item">Chart: <span>NOAA ENC</span></div>
-  <div class="statusbar-item">AIS: <span>MyShipTracking</span></div>
-  <div class="statusbar-item">Refresh: <span>5 min</span></div>
-  <div class="statusbar-item" id="api-status-bar">Proxy: <span style="color:var(--gold)">Not configured</span></div>
-</div>
-
-<!-- CONFIG MODAL -->
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <h2>Fleet Configuration</h2>
-    <p>Enter your Cloudflare Worker URL to begin charting vessel positions.</p>
-    <label>Cloudflare Worker URL</label>
-    <input type="text" id="proxy-url-input" placeholder="https://your-worker.YOUR-NAME.workers.dev" />
-    <div id="test-result" class="test-result"></div>
-    <div class="modal-note">
-      <strong>How it works:</strong> The Cloudflare Worker fetches vessel positions from
-      MyShipTracking for all 10 vessels in your fleet. All vessels are pre-configured in the Worker.
-      Paste your Worker URL above, test the connection, and save.
-    </div>
-    <div class="modal-btns">
-      <button class="btn-test" onclick="testProxy()">⚡ Test Connection</button>
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="saveConfig()">Save &amp; Load Chart</button>
-    </div>
-  </div>
-</div>
-
-<script>
-const STORE = { proxy: 'mst_proxy_url' };
-const COLORS = ['#b03a2e','#1a6644','#3a6ea8','#7d3c98','#d68910','#1a5276','#784212','#117a65','#943126','#2e4057'];
-
-let cfg = { proxyUrl: localStorage.getItem(STORE.proxy) || '' };
-
-// ── MAP ───────────────────────────────────────────────────────────────────────
-const map = L.map('map', { center:[25,-70], zoom:4, zoomControl:true });
-
-// OpenStreetMap base — always loads everywhere, good ocean coverage
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: 'Base: &copy; <a href="https://openstreetmap.org">OpenStreetMap</a>',
-  maxZoom: 18,
-}).addTo(map);
-
-// NOAA ENC overlay — traditional paper chart symbology
-// Note: NOAA tiles use {z}/{y}/{x} order and need a zoom offset of -2
-const NOAALayer = L.TileLayer.extend({
-  getTileUrl(coords) {
-    return `https://gis.charttools.noaa.gov/arcgis/rest/services/MarineChart_Services/NOAACharts/MapServer/WMTS/tile/1.0.0/MarineChart_Services_NOAACharts/default/default028mm/${coords.z + 2}/${coords.y}/${coords.x}.png`;
-  }
-});
-new NOAALayer({
-  attribution: ' | Chart: <a href="https://nauticalcharts.noaa.gov">NOAA ENC</a> | AIS: <a href="https://www.myshiptracking.com">MyShipTracking</a>',
-  maxZoom: 18, minZoom: 3,
-  opacity: 1,
-  errorTileUrl: '',
-}).addTo(map);
-
-let vessels=[], markers={}, activeMMSI=null, refreshTimer=null;
-
-// ── FETCH ─────────────────────────────────────────────────────────────────────
-async function fetchVessels() {
-  if (!cfg.proxyUrl) return null;
-  showLoading(true); hideError();
   try {
-    const res = await fetch(`${cfg.proxyUrl}/vessels`);
-    if (!res.ok) throw new Error(`Proxy returned HTTP ${res.status}`);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    if (!Array.isArray(data)) throw new Error('Unexpected response format');
-    return data;
-  } catch(err) {
-    showError(err.message);
-    return null;
-  } finally {
-    showLoading(false);
-  }
-}
+    const res = await fetch(pageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
 
-// ── MARKERS ───────────────────────────────────────────────────────────────────
-function markerIcon(color, active, outOfCoverage) {
-  const s = active ? 20 : 14;
-  const ring = active ? `box-shadow:0 0 0 3px ${color}55,0 0 10px ${color}66;` : '';
-  const op = outOfCoverage ? 'opacity:.5;' : '';
-  // Ship-shape marker — triangle pointing up
-  return L.divIcon({
-    className: '',
-    html: `<div style="width:0;height:0;border-left:${s/2}px solid transparent;border-right:${s/2}px solid transparent;border-bottom:${s}px solid ${color};filter:drop-shadow(0 1px 2px rgba(0,0,0,.4));${op}${ring}cursor:pointer"></div>`,
-    iconSize: [s, s],
-    iconAnchor: [s/2, s/2],
-  });
-}
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
 
-// ── POPUP ─────────────────────────────────────────────────────────────────────
-function popupHTML(v) {
-  const moving = v.speed > 0.5;
-  const statusColor = moving ? 'var(--green-mark)' : 'var(--gold)';
-  const statusText  = moving ? v.navStatus : (v.navStatus || 'Moored / At anchor');
-  const coverageNote = v.outOfCoverage
-    ? `<div class="popup-coverage">⚠ Out of coverage — last known position</div>` : '';
-  return `<div class="vessel-popup">
-    <div class="popup-header">
-      <div class="popup-vessel-name">${v.name}</div>
-      <div class="popup-vessel-type">MMSI ${v.mmsi}</div>
-    </div>
-    <div class="popup-body">
-      <div class="popup-grid">
-        <div class="popup-stat"><label>Speed</label><value>${v.speed} kn</value></div>
-        <div class="popup-stat"><label>Course</label><value>${v.course}°</value></div>
-        <div class="popup-stat"><label>Latitude</label><value>${v.lat != null ? v.lat.toFixed(4)+'°' : '—'}</value></div>
-        <div class="popup-stat"><label>Longitude</label><value>${v.lon != null ? v.lon.toFixed(4)+'°' : '—'}</value></div>
-        <div class="popup-stat" style="grid-column:span 2"><label>Area</label><value>${v.area}</value></div>
-        <div class="popup-stat" style="grid-column:span 2"><label>Position received</label><value>${v.received}</value></div>
-      </div>
-      <div class="popup-divider"></div>
-      <div class="popup-status-bar">
-        <div class="status-dot" style="background:${statusColor}"></div>
-        <span class="popup-status-text" style="color:${statusColor}">${statusText}</span>
-      </div>
-      ${coverageNote}
-      <a class="popup-link" href="https://www.myshiptracking.com/vessels/${v.slug}" target="_blank">↗ Full details on MyShipTracking</a>
-    </div>
-  </div>`;
-}
+    // ── COORDINATES ───────────────────────────────────────────────────────────
+    // Try multiple patterns — MyShipTracking embeds coords in several places
 
-// ── RENDER ────────────────────────────────────────────────────────────────────
-function renderVessels(list) {
-  vessels = list;
-  const plottable = list.filter(v => v.lat != null && v.lon != null);
-  document.getElementById('vessel-count').textContent = plottable.length;
-  Object.values(markers).forEach(m => map.removeLayer(m));
-  markers = {};
-  plottable.forEach((v) => {
-    const color = COLORS[list.indexOf(v) % COLORS.length];
-    v._color = color;
-    const m = L.marker([v.lat, v.lon], { icon: markerIcon(color, activeMMSI===v.mmsi, v.outOfCoverage) }).addTo(map);
-    m.bindPopup(popupHTML(v), { maxWidth:270 });
-    m.on('click', () => setActive(v.mmsi));
-    markers[v.mmsi] = m;
-  });
-  renderSidebar(list);
-  document.getElementById('last-update').textContent = new Date().toUTCString().slice(5,25) + ' UTC';
-}
+    let lat = null, lon = null;
 
-function renderSidebar(list) {
-  const el = document.getElementById('vessel-list');
-  if (!list.length) {
-    el.innerHTML = `<div class="empty-msg">${cfg.proxyUrl ? 'No data returned.<br>Check Worker config.' : 'Configure the proxy<br>to chart your fleet'}</div>`;
-    return;
-  }
-  el.innerHTML = list.map((v, i) => {
-    const color = v._color || COLORS[i % COLORS.length];
-    const hasPos = v.lat != null;
-    const tag = v.outOfCoverage ? ' · OOC' : v.error ? ' · ERR' : '';
-    return `<div class="vessel-item ${activeMMSI===v.mmsi?'active':''}"
-      onclick="${hasPos ? `setActive('${v.mmsi}')` : ''}"
-      style="${hasPos ? '' : 'cursor:default;opacity:.6'}">
-      <div class="vessel-dot-sm" style="background:${color}"></div>
-      <div class="vessel-info">
-        <div class="vessel-name">${v.name}</div>
-        <div class="vessel-status">${v.navStatus}${tag}</div>
-        ${hasPos ? '<div class="vessel-coords">' + v.lat.toFixed(3) + '°, ' + v.lon.toFixed(3) + '°</div>' : ''}
-      </div>
-      <div class="vessel-speed">${hasPos ? v.speed+'kn' : '—'}</div>
-    </div>`;
-  }).join('');
-}
+    // Pattern 1: "coordinates 10.67856° / -61.63337°" in body text
+    const p1 = html.match(/coordinates\s+([-\d.]+)°?\s*\/\s*([-\d.]+)°?/i);
+    if (p1) { lat = parseFloat(p1[1]); lon = parseFloat(p1[2]); }
 
-function setActive(mmsi) {
-  activeMMSI = mmsi;
-  const v = vessels.find(x => x.mmsi===mmsi);
-  if (!v || v.lat==null) return;
-  vessels.forEach(x => {
-    if (markers[x.mmsi]) markers[x.mmsi].setIcon(markerIcon(x._color||'#3a6ea8', x.mmsi===mmsi, x.outOfCoverage));
-  });
-  map.flyTo([v.lat, v.lon], Math.max(map.getZoom(), 8), { duration:1.2 });
-  if (markers[mmsi]) markers[mmsi].openPopup();
-  renderSidebar(vessels);
-}
-
-function filterVessels(q) {
-  q = q.toLowerCase();
-  renderSidebar(vessels.filter(v => v.name.toLowerCase().includes(q) || v.mmsi.includes(q)));
-}
-
-async function loadVessels() {
-  const data = await fetchVessels();
-  if (data) renderVessels(data);
-}
-
-function startAutoRefresh() {
-  clearInterval(refreshTimer);
-  if (cfg.proxyUrl) refreshTimer = setInterval(loadVessels, 5*60*1000);
-}
-
-// ── MODAL ─────────────────────────────────────────────────────────────────────
-async function testProxy() {
-  const url = document.getElementById('proxy-url-input').value.trim();
-  const el  = document.getElementById('test-result');
-  if (!url) { el.className='test-result err'; el.textContent='⚠ Enter a Worker URL first.'; return; }
-  el.className='test-result ok'; el.textContent='⟳ Testing connection…';
-  try {
-    const res  = await fetch(`${url}/`);
-    const data = await res.json();
-    if (data.status==='ok') {
-      el.className='test-result ok';
-      el.textContent=`✓ Worker online — tracking ${data.vessels} vessels.`;
-    } else {
-      el.className='test-result err'; el.textContent=`⚠ Unexpected: ${JSON.stringify(data)}`;
+    // Pattern 2: Longitude/Latitude table rows
+    if (lat === null) {
+      const latMatch = html.match(/Latitude[\s\S]{0,80}?<\/td>\s*<td[^>]*>\s*([-\d.]+)/i);
+      const lonMatch = html.match(/Longitude[\s\S]{0,80}?<\/td>\s*<td[^>]*>\s*([-\d.]+)/i);
+      if (latMatch && lonMatch) {
+        lat = parseFloat(latMatch[1]);
+        lon = parseFloat(lonMatch[1]);
+      }
     }
-  } catch(e) {
-    el.className='test-result err'; el.textContent=`⚠ Cannot reach worker: ${e.message}`;
+
+    // Pattern 3: JSON-LD or meta structured data
+    if (lat === null) {
+      const jsonLd = html.match(/"latitude"\s*:\s*([-\d.]+)/i);
+      const jsonLn = html.match(/"longitude"\s*:\s*([-\d.]+)/i);
+      if (jsonLd && jsonLn) {
+        lat = parseFloat(jsonLd[1]);
+        lon = parseFloat(jsonLn[1]);
+      }
+    }
+
+    // Pattern 4: Event table rows which always have lat / lon pairs like "10.67856 / -61.63337"
+    if (lat === null) {
+      const evtMatch = html.match(/([-]?\d{1,3}\.\d{3,6})\s*\/\s*([-]?\d{1,3}\.\d{3,6})/);
+      if (evtMatch) {
+        const mayLat = parseFloat(evtMatch[1]);
+        const mayLon = parseFloat(evtMatch[2]);
+        // Sanity check: valid lat/lon ranges
+        if (mayLat >= -90 && mayLat <= 90 && mayLon >= -180 && mayLon <= 180) {
+          lat = mayLat; lon = mayLon;
+        }
+      }
+    }
+
+    // ── SPEED ─────────────────────────────────────────────────────────────────
+    // "current speed is X Knots" or "Speed | 0 Knots" in table
+    let speed = 0;
+    const sp1 = html.match(/current speed is\s*([\d.]+)\s*[Kk]nots?/);
+    const sp2 = html.match(/Speed<\/td>\s*<td[^>]*>\s*([\d.]+)/i);
+    const sp3 = html.match(/speed[:\s]+([\d.]+)\s*kn/i);
+    if (sp1) speed = parseFloat(sp1[1]);
+    else if (sp2) speed = parseFloat(sp2[1]);
+    else if (sp3) speed = parseFloat(sp3[1]);
+
+    // ── COURSE ────────────────────────────────────────────────────────────────
+    let course = 0;
+    const co1 = html.match(/Course<\/td>\s*<td[^>]*>\s*([\d.]+)°?/i);
+    const co2 = html.match(/[Cc]ourse[:\s]+([\d.]+)°/);
+    if (co1) course = parseFloat(co1[1]);
+    else if (co2) course = parseFloat(co2[1]);
+
+    // ── NAV STATUS ────────────────────────────────────────────────────────────
+    const navStatus = extractStatus(html);
+
+    // ── AREA ──────────────────────────────────────────────────────────────────
+    let area = "—";
+    const ar1 = html.match(/Area<\/td>\s*<td[^>]*>\s*([^<]{2,50})<\/td>/i);
+    if (ar1) area = ar1[1].trim();
+
+    // ── LAST RECEIVED ─────────────────────────────────────────────────────────
+    let received = "—";
+    const rc1 = html.match(/Position Received<\/td>\s*<td[^>]*>\s*([^<]{3,50})<\/td>/i);
+    if (rc1) received = rc1[1].trim();
+
+    // ── OUT OF COVERAGE ───────────────────────────────────────────────────────
+    const outOfCoverage = /out of coverage/i.test(html);
+
+    return {
+      mmsi: vessel.mmsi,
+      name: vessel.name,
+      slug: vessel.slug,
+      lat,
+      lon,
+      speed,
+      course,
+      navStatus,
+      area,
+      received,
+      outOfCoverage,
+      error: null,
+    };
+
+  } catch (err) {
+    return {
+      mmsi: vessel.mmsi,
+      name: vessel.name,
+      slug: vessel.slug,
+      lat: null, lon: null,
+      speed: 0, course: 0,
+      navStatus: "Unknown",
+      area: "—", received: "—",
+      outOfCoverage: false,
+      error: err.message,
+    };
   }
 }
 
-function openModal() {
-  document.getElementById('proxy-url-input').value = cfg.proxyUrl;
-  document.getElementById('test-result').className = 'test-result';
-  document.getElementById('modal').classList.add('open');
-}
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
-
-function saveConfig() {
-  const proxyUrl = document.getElementById('proxy-url-input').value.trim().replace(/\/$/, '');
-  cfg = { proxyUrl };
-  localStorage.setItem(STORE.proxy, proxyUrl);
-  document.getElementById('api-status-bar').innerHTML = proxyUrl
-    ? `Proxy: <span style="color:var(--green-mark)">Connected</span>`
-    : `Proxy: <span style="color:var(--gold)">Not configured</span>`;
-  closeModal();
-  loadVessels();
-  startAutoRefresh();
+// ── Extract nav status ────────────────────────────────────────────────────────
+function extractStatus(html) {
+  // Table cell after "Status"
+  const m = html.match(/Status<\/(?:td|th)[^>]*>\s*<(?:td|th)[^>]*>\s*([^<]{2,50})<\//i);
+  if (m) return m[1].trim();
+  if (/[Mm]oored/.test(html))                return "Moored";
+  if (/[Aa]t\s+anchor/.test(html))           return "At anchor";
+  if (/[Uu]nder\s+way\s+using\s+engine/i.test(html)) return "Under way using engine";
+  if (/[Uu]nderway/.test(html))              return "Underway";
+  if (/[Aa]nchored/.test(html))              return "At anchor";
+  return "Unknown";
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
-function showLoading(v) { document.getElementById('loading').classList.toggle('show',v); }
-function showError(msg) { const e=document.getElementById('error-banner'); e.textContent=`⚠ ${msg}`; e.classList.add('show'); }
-function hideError() { document.getElementById('error-banner').classList.remove('show'); }
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
-if (cfg.proxyUrl) {
-  document.getElementById('api-status-bar').innerHTML = `Proxy: <span style="color:var(--green-mark)">Connected</span>`;
-  loadVessels();
-  startAutoRefresh();
+// ── CORS ──────────────────────────────────────────────────────────────────────
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin":  ALLOWED_ORIGIN,
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
 }
-</script>
-</body>
-</html>
