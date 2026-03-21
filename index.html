@@ -133,7 +133,7 @@
     .cfg-btn:hover { border-color: var(--chart-blue); color: var(--chart-blue); background: var(--chart-water); }
 
     /* ── MAIN ── */
-    .main { display:flex; flex:1; overflow:hidden; }
+    .main { display:flex; flex:1; overflow:hidden; position:relative; }
 
     /* ── SIDEBAR ── */
     .sidebar {
@@ -144,6 +144,7 @@
       flex-direction: column;
       flex-shrink: 0;
       overflow: hidden;
+      transition: width .25s ease;
     }
     .sidebar-header {
       padding: 16px 18px 14px;
@@ -565,8 +566,30 @@
   </div>
 
   <!-- MAP -->
-  <div class="map-wrapper">
+  <div class="map-wrapper" style="position:relative;">
+    <button id="sidebar-btn" onclick="toggleSidebar()" title="Toggle sidebar" style="
+      position:absolute;left:0;top:50%;transform:translateY(-50%);
+      z-index:1001;width:18px;height:52px;
+      background:var(--paper-dark);border:2px solid var(--border);border-left:none;
+      color:var(--ink-light);font-size:10px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      font-family:'Inconsolata',monospace;letter-spacing:0;
+    ">◀</button>
     <div id="map"></div>
+    <div style="position:absolute;top:10px;left:50px;z-index:500;display:flex;flex-direction:column;gap:6px;">
+      <button id="noaa-btn" onclick="toggleNOAA()" title="Toggle NOAA chart" style="
+        background:var(--paper);border:1px solid var(--green-mark);
+        color:var(--green-mark);padding:4px 10px;
+        font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
+        cursor:pointer;transition:all .2s;white-space:nowrap;
+      ">Chart: ON</button>
+      <button onclick="zoomExtents()" title="Zoom to fleet" style="
+        background:var(--paper);border:1px solid var(--border);
+        color:var(--ink-light);padding:4px 10px;
+        font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
+        cursor:pointer;transition:all .2s;white-space:nowrap;
+      ">⌂ Extents</button>
+    </div>
     <div class="loading-overlay" id="loading">
       <div class="loading-box">⟳ Fetching AIS data…</div>
     </div>
@@ -611,7 +634,9 @@ const COLORS = ['#b03a2e','#1a6644','#3a6ea8','#7d3c98','#d68910','#1a5276','#78
 let cfg = { proxyUrl: localStorage.getItem(STORE.proxy) || '' };
 
 // ── MAP ───────────────────────────────────────────────────────────────────────
-const map = L.map('map', { center:[25,-70], zoom:4, zoomControl:true });
+const DEFAULT_VIEW = { center:[20,-60], zoom:3 };
+const map = L.map('map', { center:DEFAULT_VIEW.center, zoom:DEFAULT_VIEW.zoom, zoomControl:false });
+L.control.zoom({ position:'topleft' }).addTo(map);
 
 // OpenStreetMap base — always loads everywhere, good ocean coverage
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -628,12 +653,14 @@ const NOAALayer = L.TileLayer.extend({
     return `https://gis.charttools.noaa.gov/arcgis/rest/services/MarineChart_Services/NOAACharts/MapServer/WMTS/tile/1.0.0/MarineChart_Services_NOAACharts/default/GoogleMapsCompatible/${z}/${coords.y}/${coords.x}.png`;
   }
 });
-new NOAALayer({
+const noaaLayer = new NOAALayer({
   attribution: ' | Chart: <a href="https://nauticalcharts.noaa.gov">NOAA ENC</a> | AIS: <a href="https://www.myshiptracking.com">MyShipTracking</a>',
   maxZoom: 18, minZoom: 3,
   opacity: 1,
   errorTileUrl: '',
-}).addTo(map);
+});
+noaaLayer.addTo(map);
+let noaaVisible = true;
 
 let vessels=[], markers={}, activeMMSI=null, refreshTimer=null;
 
@@ -812,6 +839,30 @@ function saveConfig() {
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
+function toggleNOAA() {
+  noaaVisible = !noaaVisible;
+  if (noaaVisible) { noaaLayer.addTo(map); } else { map.removeLayer(noaaLayer); }
+  const btn = document.getElementById('noaa-btn');
+  btn.textContent = noaaVisible ? 'Chart: ON' : 'Chart: OFF';
+  btn.style.color = noaaVisible ? 'var(--green-mark)' : 'var(--ink-faint)';
+  btn.style.borderColor = noaaVisible ? 'var(--green-mark)' : 'var(--border-light)';
+}
+
+function zoomExtents() {
+  map.flyTo(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom, { duration:1 });
+  activeMMSI = null;
+  renderSidebar(vessels);
+}
+
+function toggleSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const btn = document.getElementById('sidebar-btn');
+  const collapsed = sidebar.style.width === '0px';
+  sidebar.style.width = collapsed ? '' : '0px';
+  btn.textContent = collapsed ? '◀' : '▶';
+  setTimeout(() => map.invalidateSize(), 260);
+}
+
 function showLoading(v) { document.getElementById('loading').classList.toggle('show',v); }
 function showError(msg) { const e=document.getElementById('error-banner'); e.textContent=`⚠ ${msg}`; e.classList.add('show'); }
 function hideError() { document.getElementById('error-banner').classList.remove('show'); }
