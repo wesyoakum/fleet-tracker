@@ -582,7 +582,13 @@
         color:var(--green-mark);padding:4px 10px;
         font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
         cursor:pointer;transition:all .2s;white-space:nowrap;
-      ">Chart: ON</button>
+      ">NOAA: ON</button>
+      <button id="osm-btn" onclick="toggleOSM()" title="Toggle OpenSeaMap" style="
+        background:var(--paper);border:1px solid var(--border);
+        color:var(--ink-faint);padding:4px 10px;
+        font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
+        cursor:pointer;transition:all .2s;white-space:nowrap;
+      ">SeaMap: OFF</button>
       <button onclick="zoomExtents()" title="Zoom to fleet" style="
         background:var(--paper);border:1px solid var(--border);
         color:var(--ink-light);padding:4px 10px;
@@ -661,6 +667,13 @@ const noaaLayer = new NOAALayer({
 });
 noaaLayer.addTo(map);
 let noaaVisible = true;
+
+// OpenSeaMap — nautical marks overlay on top of OSM
+const osmLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+  attribution: ' | Nautical marks: <a href="https://www.openseamap.org">OpenSeaMap</a>',
+  maxZoom: 18, minZoom: 3, opacity: 1,
+});
+let osmVisible = false;
 
 let vessels=[], markers={}, activeMMSI=null, refreshTimer=null;
 
@@ -843,9 +856,18 @@ function toggleNOAA() {
   noaaVisible = !noaaVisible;
   if (noaaVisible) { noaaLayer.addTo(map); } else { map.removeLayer(noaaLayer); }
   const btn = document.getElementById('noaa-btn');
-  btn.textContent = noaaVisible ? 'Chart: ON' : 'Chart: OFF';
+  btn.textContent = noaaVisible ? 'NOAA: ON' : 'NOAA: OFF';
   btn.style.color = noaaVisible ? 'var(--green-mark)' : 'var(--ink-faint)';
   btn.style.borderColor = noaaVisible ? 'var(--green-mark)' : 'var(--border-light)';
+}
+
+function toggleOSM() {
+  osmVisible = !osmVisible;
+  if (osmVisible) { osmLayer.addTo(map); } else { map.removeLayer(osmLayer); }
+  const btn = document.getElementById('osm-btn');
+  btn.textContent = osmVisible ? 'SeaMap: ON' : 'SeaMap: OFF';
+  btn.style.color = osmVisible ? 'var(--chart-blue)' : 'var(--ink-faint)';
+  btn.style.borderColor = osmVisible ? 'var(--chart-blue)' : 'var(--border-light)';
 }
 
 function zoomExtents() {
