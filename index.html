@@ -656,14 +656,13 @@ async function fetchVessels() {
 
 // ── MARKERS ───────────────────────────────────────────────────────────────────
 function markerIcon(color, active, outOfCoverage) {
-  const s = active ? 18 : 12;
+  const s = active ? 24 : 18;
   const border = active
-    ? `border:2.5px solid ${color};box-shadow:0 0 0 3px ${color}44,0 0 10px ${color}66,0 2px 4px rgba(0,0,0,.3);`
-    : 'border:2px solid rgba(0,0,0,.25);box-shadow:0 1px 4px rgba(0,0,0,.3);';
-  const op = outOfCoverage ? 'opacity:.5;' : '';
+    ? `border:3px solid ${color};box-shadow:0 0 0 3px ${color}66,0 2px 6px rgba(0,0,0,.4);`
+    : 'border:2px solid rgba(0,0,0,.35);box-shadow:0 1px 4px rgba(0,0,0,.3);';
   return L.divIcon({
     className: '',
-    html: `<div style="width:${s}px;height:${s}px;background:${color};border-radius:50%;${border}${op}cursor:pointer;"></div>`,
+    html: `<div style="width:${s}px;height:${s}px;background:${color};border-radius:50%;${border}cursor:pointer;"></div>`,
     iconSize: [s, s],
     iconAnchor: [s/2, s/2],
   });
