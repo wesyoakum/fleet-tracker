@@ -620,10 +620,12 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // NOAA ENC overlay — traditional paper chart symbology
-// Note: NOAA tiles use {z}/{y}/{x} order and need a zoom offset of -2
+// NOAA WMTS uses GoogleMapsCompatible tile matrix but with zoom offset of -2
+// Max 17 zoom levels (0-16), {z}/{y}/{x} order, US waters only
 const NOAALayer = L.TileLayer.extend({
   getTileUrl(coords) {
-    return `https://gis.charttools.noaa.gov/arcgis/rest/services/MarineChart_Services/NOAACharts/MapServer/WMTS/tile/1.0.0/MarineChart_Services_NOAACharts/default/default028mm/${coords.z + 2}/${coords.y}/${coords.x}.png`;
+    const z = Math.max(0, Math.min(coords.z - 2, 16));
+    return `https://gis.charttools.noaa.gov/arcgis/rest/services/MarineChart_Services/NOAACharts/MapServer/WMTS/tile/1.0.0/MarineChart_Services_NOAACharts/default/GoogleMapsCompatible/${z}/${coords.y}/${coords.x}.png`;
   }
 });
 new NOAALayer({
