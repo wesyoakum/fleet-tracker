@@ -619,16 +619,19 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18,
 }).addTo(map);
 
-// NOAA ENC overlay on top — traditional paper chart symbology over US coastal waters
-L.tileLayer(
-  'https://gis.charttools.noaa.gov/arcgis/rest/services/MarineChart_Services/NOAACharts/MapServer/WMTS/tile/1.0.0/MarineChart_Services_NOAACharts/default/GoogleMapsCompatible/{z}/{y}/{x}.png',
-  {
-    attribution: ' | Chart: <a href="https://nauticalcharts.noaa.gov">NOAA ENC</a> | AIS: <a href="https://www.myshiptracking.com">MyShipTracking</a>',
-    maxZoom: 18, minZoom: 3,
-    opacity: 1,
-    errorTileUrl: '',
+// NOAA ENC overlay — traditional paper chart symbology
+// Note: NOAA tiles use {z}/{y}/{x} order and need a zoom offset of -2
+const NOAALayer = L.TileLayer.extend({
+  getTileUrl(coords) {
+    return `https://gis.charttools.noaa.gov/arcgis/rest/services/MarineChart_Services/NOAACharts/MapServer/WMTS/tile/1.0.0/MarineChart_Services_NOAACharts/default/default028mm/${coords.z + 2}/${coords.y}/${coords.x}.png`;
   }
-).addTo(map);
+});
+new NOAALayer({
+  attribution: ' | Chart: <a href="https://nauticalcharts.noaa.gov">NOAA ENC</a> | AIS: <a href="https://www.myshiptracking.com">MyShipTracking</a>',
+  maxZoom: 18, minZoom: 3,
+  opacity: 1,
+  errorTileUrl: '',
+}).addTo(map);
 
 let vessels=[], markers={}, activeMMSI=null, refreshTimer=null;
 
@@ -733,7 +736,7 @@ function renderSidebar(list) {
       <div class="vessel-info">
         <div class="vessel-name">${v.name}</div>
         <div class="vessel-status">${v.navStatus}${tag}</div>
-        ${hasPos ? `<div class="vessel-coords">${v.lat.toFixed(3)}°, ${v.lon.toFixed(3)}°</div>` : ''}
+        ${hasPos ? '<div class="vessel-coords">' + v.lat.toFixed(3) + '°, ' + v.lon.toFixed(3) + '°</div>' : ''}
       </div>
       <div class="vessel-speed">${hasPos ? v.speed+'kn' : '—'}</div>
     </div>`;
