@@ -377,6 +377,7 @@
       text-transform: uppercase;
     }
     .statusbar-item span { color: var(--chart-blue); }
+    .statusbar-item[onclick]:hover { color: var(--chart-blue); text-decoration: underline; }
 
     /* ── LOADING ── */
     .loading-overlay {
@@ -614,7 +615,7 @@
   <div class="statusbar-item">Last fix: <span id="last-update">—</span></div>
   <div class="statusbar-item">Chart: <span>NOAA ENC</span></div>
   <div class="statusbar-item">AIS: <span>MyShipTracking</span></div>
-  <div class="statusbar-item">Refresh: <span>60 min</span></div>
+  <div class="statusbar-item" style="cursor:pointer;" onclick="manualRefresh()" title="Click to refresh now"><span id="refresh-countdown" style="color:var(--chart-blue)">Refresh in 60 min</span></div>
   <div class="statusbar-item" id="api-status-bar">Proxy: <span style="color:var(--gold)">Not configured</span></div>
 </div>
 
@@ -814,9 +815,30 @@ async function loadVessels() {
   if (data) renderVessels(data);
 }
 
+let countdownTimer = null;
+let countdownSeconds = 0;
+
 function startAutoRefresh() {
   clearInterval(refreshTimer);
-  if (cfg.proxyUrl) refreshTimer = setInterval(loadVessels, 60*60*1000);
+  clearInterval(countdownTimer);
+  if (!cfg.proxyUrl) return;
+  countdownSeconds = 60 * 60;
+  updateCountdown();
+  refreshTimer = setInterval(() => {
+    loadVessels();
+    countdownSeconds = 60 * 60;
+  }, 60 * 60 * 1000);
+  countdownTimer = setInterval(() => {
+    countdownSeconds = Math.max(0, countdownSeconds - 1);
+    updateCountdown();
+  }, 1000);
+}
+
+function updateCountdown() {
+  const el = document.getElementById('refresh-countdown');
+  if (!el) return;
+  const mins = Math.ceil(countdownSeconds / 60);
+  el.textContent = countdownSeconds <= 0 ? 'Refreshing…' : \`Refresh in \${mins} min\`;
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────────
@@ -881,9 +903,13 @@ function manualRefresh() {
   const btn = document.getElementById('refresh-btn');
   btn.textContent = '↻ …';
   btn.style.color = 'var(--chart-blue)';
+  const el = document.getElementById('refresh-countdown');
+  if (el) el.textContent = 'Refreshing…';
   loadVessels().then(() => {
     btn.textContent = '↻ Refresh';
     btn.style.color = 'var(--ink-light)';
+    countdownSeconds = 60 * 60;
+    updateCountdown();
   });
 }
 
