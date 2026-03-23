@@ -678,12 +678,18 @@
         font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
         cursor:pointer;transition:all .2s;white-space:nowrap;
       ">SeaMap: ON</button>
-      <button onclick="zoomExtents()" title="Zoom to fleet" style="
+      <button onclick="viewAtlantic()" title="Atlantic view" style="
         background:var(--paper);border:1px solid var(--border);
         color:var(--ink-light);padding:4px 10px;
         font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
         cursor:pointer;transition:all .2s;white-space:nowrap;
-      ">⌂ Extents</button>
+      ">Atlantic</button>
+      <button onclick="viewPacific()" title="Pacific view" style="
+        background:var(--paper);border:1px solid var(--border);
+        color:var(--ink-light);padding:4px 10px;
+        font-family:'Inconsolata',monospace;font-size:10px;letter-spacing:.1em;
+        cursor:pointer;transition:all .2s;white-space:nowrap;
+      ">Pacific</button>
       <button id="refresh-btn" onclick="manualRefresh()" title="Refresh vessel positions" style="
         background:var(--paper);border:1px solid var(--border);
         color:var(--ink-light);padding:4px 10px;
@@ -761,8 +767,9 @@ const COLORS = ['#b03a2e','#1a6644','#3a6ea8','#7d3c98','#d68910','#1a5276','#78
 let cfg = { proxyUrl: localStorage.getItem(STORE.proxy) || '' };
 
 // ── MAP ───────────────────────────────────────────────────────────────────────
-const DEFAULT_VIEW = { center:[20,-60], zoom:3 };
-const map = L.map('map', { center:DEFAULT_VIEW.center, zoom:DEFAULT_VIEW.zoom, zoomControl:false });
+const ATLANTIC_VIEW = { center:[20,-30], zoom:2 };  // Americas left, Africa/Europe right
+const PACIFIC_VIEW  = { center:[20,180], zoom:2 };  // Asia left, Americas right
+const map = L.map('map', { center:ATLANTIC_VIEW.center, zoom:ATLANTIC_VIEW.zoom, zoomControl:false });
 L.control.zoom({ position:'topleft' }).addTo(map);
 
 // OpenStreetMap base — always loads everywhere, good ocean coverage
@@ -1138,8 +1145,14 @@ function manualRefresh() {
   });
 }
 
-function zoomExtents() {
-  map.flyTo(DEFAULT_VIEW.center, DEFAULT_VIEW.zoom, { duration:1 });
+function viewAtlantic() {
+  map.flyTo(ATLANTIC_VIEW.center, ATLANTIC_VIEW.zoom, { duration:1 });
+  activeMMSI = null;
+  renderSidebar(vessels);
+}
+
+function viewPacific() {
+  map.flyTo(PACIFIC_VIEW.center, PACIFIC_VIEW.zoom, { duration:1 });
   activeMMSI = null;
   renderSidebar(vessels);
 }
