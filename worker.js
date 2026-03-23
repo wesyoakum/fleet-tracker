@@ -4,6 +4,7 @@
 // ============================================================
 const ALLOWED_ORIGIN = "https://wesyoakum.github.io";
 const MAX_FLEET_SIZE = 30;
+const MAX_PINS = 50;
 
 // Seed data — written to KV on first access
 const SEED_VESSELS = [
@@ -29,6 +30,16 @@ async function getFleet(env) {
 
 async function putFleet(env, fleet) {
   await env.FLEET_KV.put("fleet", JSON.stringify(fleet));
+}
+
+// ── Pin KV helpers ────────────────────────────────────────────────────────────
+async function getPins(env) {
+  const stored = await env.FLEET_KV.get("pins", { type: "json" });
+  return stored || [];
+}
+
+async function putPins(env, pins) {
+  await env.FLEET_KV.put("pins", JSON.stringify(pins));
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -104,6 +115,61 @@ export default {
       return json({ ok: true, fleet });
     }
 
+    // GET /geocode?q=X — proxy geocoding via Nominatim
+    if (url.pathname === "/geocode" && request.method === "GET") {
+      const query = url.searchParams.get("q");
+      if (!query || query.trim().length < 2) {
+        return json({ error: "Provide a 'q' parameter (at least 2 characters)" }, 400);
+      }
+      try {
+        const results = await geocode(query.trim());
+        return json(results);
+      } catch (err) {
+        return json({ error: `Geocode failed: ${err.message}` }, 502);
+      }
+    }
+
+    // GET /pins — return all saved pins
+    if (url.pathname === "/pins" && request.method === "GET") {
+      const pins = await getPins(env);
+      return json(pins);
+    }
+
+    // POST /pins — add a pin { name, lat, lon }
+    if (url.pathname === "/pins" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const { name, lat, lon } = body;
+        if (!name || lat == null || lon == null) {
+          return json({ error: "Required fields: name, lat, lon" }, 400);
+        }
+        const pins = await getPins(env);
+        if (pins.length >= MAX_PINS) {
+          return json({ error: `Maximum ${MAX_PINS} pins reached` }, 400);
+        }
+        const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        pins.push({ id, name, lat: parseFloat(lat), lon: parseFloat(lon) });
+        await putPins(env, pins);
+        return json({ ok: true, pins });
+      } catch (err) {
+        return json({ error: `Invalid request: ${err.message}` }, 400);
+      }
+    }
+
+    // DELETE /pins/:id — remove a pin
+    const pinDelMatch = url.pathname.match(/^\/pins\/([a-z0-9]+)$/);
+    if (pinDelMatch && request.method === "DELETE") {
+      const id = pinDelMatch[1];
+      const pins = await getPins(env);
+      const idx = pins.findIndex(p => p.id === id);
+      if (idx === -1) {
+        return json({ error: "Pin not found" }, 404);
+      }
+      pins.splice(idx, 1);
+      await putPins(env, pins);
+      return json({ ok: true, pins });
+    }
+
     return json({ error: "Not found" }, 404);
   },
 };
@@ -166,6 +232,26 @@ function parseSearchResults(html) {
   }
 
   return results;
+}
+
+// ── Geocode via Nominatim ─────────────────────────────────────────────────────
+async function geocode(query) {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=8&addressdetails=1`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "FleetTrack/1.0 (vessel tracking app)",
+      "Accept": "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`Nominatim returned HTTP ${res.status}`);
+  const data = await res.json();
+  return data.map(r => ({
+    name: r.display_name,
+    lat: parseFloat(r.lat),
+    lon: parseFloat(r.lon),
+    type: r.type,
+    category: r.category,
+  }));
 }
 
 // ── Scrape a single vessel page ───────────────────────────────────────────────

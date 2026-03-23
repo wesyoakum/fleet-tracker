@@ -618,6 +618,147 @@
     }
     .vessel-item:hover .vessel-remove-btn { opacity:.7; }
     .vessel-remove-btn:hover { opacity:1 !important; border-color:var(--red); background:rgba(176,58,46,.08); }
+
+    /* ── PINS ── */
+    .pin-section {
+      border-top: 2px solid var(--border);
+      flex-shrink: 0;
+      max-height: 40%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .pin-header {
+      padding: 10px 18px 8px;
+      background: var(--paper-darker);
+      border-bottom: 1px solid var(--border-light);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .pin-title {
+      font-family: 'Inconsolata', monospace;
+      font-size: 9px; letter-spacing: .2em;
+      color: var(--ink-faint); text-transform: uppercase;
+    }
+    .btn-add-pin {
+      background: transparent; border: 1px solid var(--gold);
+      color: var(--gold); padding: 2px 8px;
+      font-family: 'Inconsolata', monospace; font-size: 9px;
+      letter-spacing: .08em; cursor: pointer; transition: all .2s;
+    }
+    .btn-add-pin:hover { background: rgba(139,105,20,.1); }
+    .pin-list { flex:1; overflow-y:auto; padding:2px 0; }
+    .pin-list::-webkit-scrollbar { width:5px; }
+    .pin-list::-webkit-scrollbar-thumb { background:var(--border-light); }
+    .pin-item {
+      padding: 8px 18px; cursor: pointer;
+      border-left: 3px solid transparent;
+      border-bottom: 1px solid var(--paper-darker);
+      transition: all .15s; display: flex; align-items: center; gap: 10px;
+      position: relative;
+    }
+    .pin-item:hover { background: rgba(139,105,20,.08); }
+    .pin-item.active { background: rgba(139,105,20,.12); border-left-color: var(--gold); }
+    .pin-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--gold); border: 2px solid var(--gold-light);
+      flex-shrink: 0;
+    }
+    .pin-info { flex:1; min-width:0; }
+    .pin-name {
+      font-size: 11px; font-weight: 700; color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pin-coords {
+      font-family: 'Inconsolata', monospace; font-size: 9px;
+      color: var(--ink-faint); margin-top: 1px; letter-spacing: .04em;
+    }
+    .pin-remove-btn {
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      background:transparent; border:1px solid transparent; color:var(--red);
+      font-size:14px; cursor:pointer; padding:2px 6px; line-height:1;
+      opacity:0; transition: opacity .15s;
+      font-family:'Inconsolata',monospace;
+    }
+    .pin-item:hover .pin-remove-btn { opacity:.7; }
+    .pin-remove-btn:hover { opacity:1 !important; border-color:var(--red); background:rgba(176,58,46,.08); }
+
+    /* ── PIN MODAL ── */
+    .pin-modal { width: 520px; }
+    .pin-tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid var(--border); }
+    .pin-tab {
+      background: transparent; border:none; border-bottom:3px solid transparent;
+      padding: 10px 20px; margin-bottom:-2px;
+      font-family: 'Inconsolata', monospace; font-size: 11px;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-faint); cursor:pointer; transition: all .2s;
+    }
+    .pin-tab:hover { color: var(--ink-light); }
+    .pin-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .pin-panel { display:none; }
+    .pin-panel.active { display:block; }
+    .geo-item {
+      display:flex; align-items:center; gap:12px;
+      padding:10px 12px; border-bottom:1px solid var(--paper-dark);
+      transition: background .15s; cursor: pointer;
+    }
+    .geo-item:hover { background:rgba(139,105,20,.08); }
+    .geo-info { flex:1; min-width:0; }
+    .geo-name { font-size:12px; color:var(--ink); line-height:1.4; }
+    .geo-coords {
+      font-family:'Inconsolata',monospace; font-size:10px;
+      color:var(--ink-faint); margin-top:2px;
+    }
+    .btn-pin {
+      background:var(--gold); border:none; color:white;
+      padding:5px 14px; font-family:'Inconsolata',monospace;
+      font-size:10px; letter-spacing:.08em; cursor:pointer;
+      white-space:nowrap; transition: background .2s;
+    }
+    .btn-pin:hover { background:#6b5210; }
+    .btn-pin:disabled { background:var(--ink-faint); cursor:default; }
+    .coord-row { display:flex; gap:10px; margin-bottom:14px; }
+    .coord-row input { flex:1; margin-bottom:0; }
+    .coord-row .btn-pin { padding:9px 18px; font-size:12px; }
+
+    /* Pin popup on map */
+    .pin-popup {
+      background: var(--paper); border: 1.5px solid var(--gold);
+      padding: 10px 14px; min-width: 160px;
+      box-shadow: 2px 2px 0 var(--border-light), 0 4px 12px rgba(0,0,0,.15);
+    }
+    .pin-popup-name {
+      font-family: 'IM Fell English', serif; font-size: 15px;
+      color: var(--ink); margin-bottom: 4px;
+    }
+    .pin-popup-coords {
+      font-family: 'Inconsolata', monospace; font-size: 10px;
+      color: var(--ink-faint); letter-spacing: .04em;
+    }
+    .pin-popup-remove {
+      display:block; margin-top:8px; border-top:1px solid var(--border-light);
+      padding-top:6px; font-family:'Inconsolata',monospace; font-size:10px;
+      color:var(--red); cursor:pointer; text-decoration:none; letter-spacing:.06em;
+    }
+    .pin-popup-remove:hover { text-decoration:underline; }
+
+    /* Right-click prompt */
+    .map-pin-prompt {
+      position:absolute; z-index:600; background:var(--paper);
+      border:1.5px solid var(--gold); padding:10px 14px;
+      box-shadow:3px 3px 0 var(--border-light); display:none;
+    }
+    .map-pin-prompt.show { display:block; }
+    .map-pin-prompt input {
+      width:180px; background:white; border:1px solid var(--border-light);
+      padding:6px 9px; color:var(--ink); font-family:'Inconsolata',monospace;
+      font-size:12px; outline:none; margin-bottom:8px;
+    }
+    .map-pin-prompt input:focus { border-color:var(--gold); }
+    .map-pin-prompt-btns { display:flex; gap:6px; }
+    .map-pin-prompt-btns button {
+      font-family:'Inconsolata',monospace; font-size:10px;
+      padding:4px 10px; cursor:pointer; letter-spacing:.06em;
+    }
   </style>
 </head>
 <body>
@@ -651,6 +792,14 @@
     <div id="error-banner" class="error-banner"></div>
     <div class="vessel-list" id="vessel-list">
       <div class="empty-msg">Configure the proxy<br>to chart your fleet</div>
+    </div>
+    <!-- PIN SECTION -->
+    <div class="pin-section">
+      <div class="pin-header">
+        <div class="pin-title">Pinned Locations</div>
+        <button class="btn-add-pin" onclick="openPinModal()">+ Pin</button>
+      </div>
+      <div class="pin-list" id="pin-list"></div>
     </div>
   </div>
 
@@ -699,6 +848,16 @@
     </div>
     <div class="loading-overlay" id="loading">
       <div class="loading-box">⟳ Fetching AIS data…</div>
+    </div>
+    <!-- Right-click pin prompt -->
+    <div class="map-pin-prompt" id="map-pin-prompt">
+      <div style="font-family:'Inconsolata',monospace;font-size:9px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Pin Location</div>
+      <input type="text" id="map-pin-name" placeholder="Name this pin…" onkeydown="if(event.key==='Enter')confirmMapPin()" />
+      <div id="map-pin-coords" style="font-family:'Inconsolata',monospace;font-size:10px;color:var(--ink-faint);margin-bottom:8px"></div>
+      <div class="map-pin-prompt-btns">
+        <button class="btn-pin" onclick="confirmMapPin()">Pin</button>
+        <button style="background:transparent;border:1px solid var(--border-light);color:var(--ink-light)" onclick="cancelMapPin()">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -756,6 +915,46 @@
     </div>
     <div class="modal-btns" style="margin-top:16px">
       <button class="btn-cancel" onclick="closeFleetModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- PIN MODAL -->
+<div class="modal-overlay" id="pin-modal">
+  <div class="modal pin-modal">
+    <h2>Pin a Location</h2>
+    <p>Search for a place or enter coordinates to pin on the chart.</p>
+    <div class="pin-tabs">
+      <button class="pin-tab active" onclick="switchPinTab('search')">Search</button>
+      <button class="pin-tab" onclick="switchPinTab('coords')">Coordinates</button>
+    </div>
+    <div id="pin-panel-search" class="pin-panel active">
+      <div class="search-row">
+        <input type="text" id="pin-search-input" placeholder="City, port, landmark…" onkeydown="if(event.key==='Enter')doPinSearch()" />
+        <button class="btn-search" onclick="doPinSearch()">Search</button>
+      </div>
+      <div id="pin-search-status" class="search-status"></div>
+      <div id="pin-search-results" class="search-results" style="max-height:280px"></div>
+    </div>
+    <div id="pin-panel-coords" class="pin-panel">
+      <label>Name</label>
+      <input type="text" id="pin-coord-name" placeholder="Pin name…" />
+      <div class="coord-row">
+        <div style="flex:1">
+          <label>Latitude</label>
+          <input type="number" step="any" id="pin-coord-lat" placeholder="e.g. 29.3013" />
+        </div>
+        <div style="flex:1">
+          <label>Longitude</label>
+          <input type="number" step="any" id="pin-coord-lon" placeholder="e.g. -94.7977" />
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn-pin" onclick="addPinFromCoords()" style="padding:9px 18px;font-size:12px">Pin Location</button>
+      </div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="btn-cancel" onclick="closePinModal()">Close</button>
     </div>
   </div>
 </div>
@@ -978,6 +1177,7 @@ function saveConfig() {
     : `Proxy: <span style="color:var(--gold)">Not configured</span>`;
   closeModal();
   loadVessels();
+  loadPins();
   startAutoRefresh();
 }
 
@@ -1117,6 +1317,201 @@ function confirmRemoveSidebar(mmsi, btnEl) {
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+// ── PINS ──────────────────────────────────────────────────────────────────────
+let pins = [], pinMarkers = {}, activePinId = null, pendingPinLatLng = null;
+
+function openPinModal() {
+  if (!cfg.proxyUrl) { openModal(); return; }
+  document.getElementById('pin-modal').classList.add('open');
+  document.getElementById('pin-search-input').value = '';
+  document.getElementById('pin-search-results').innerHTML = '';
+  document.getElementById('pin-search-status').textContent = '';
+  switchPinTab('search');
+}
+function closePinModal() { document.getElementById('pin-modal').classList.remove('open'); }
+
+function switchPinTab(tab) {
+  document.querySelectorAll('.pin-tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='search' ? i===0 : i===1));
+  });
+  document.getElementById('pin-panel-search').classList.toggle('active', tab==='search');
+  document.getElementById('pin-panel-coords').classList.toggle('active', tab==='coords');
+}
+
+async function doPinSearch() {
+  const query = document.getElementById('pin-search-input').value.trim();
+  const statusEl = document.getElementById('pin-search-status');
+  const resultsEl = document.getElementById('pin-search-results');
+  if (query.length < 2) { statusEl.textContent = 'Enter at least 2 characters.'; return; }
+  statusEl.textContent = 'Searching…';
+  resultsEl.innerHTML = '';
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/geocode?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    statusEl.textContent = data.length ? `${data.length} result${data.length>1?'s':''}` : 'No results found.';
+    resultsEl.innerHTML = data.map(r => {
+      const shortName = r.name.length > 80 ? r.name.slice(0,77)+'…' : r.name;
+      return `<div class="geo-item" onclick="addPinFromSearch(${r.lat},${r.lon},'${esc(shortName)}',this)">
+        <div class="geo-info">
+          <div class="geo-name">${esc(shortName)}</div>
+          <div class="geo-coords">${r.lat.toFixed(4)}°, ${r.lon.toFixed(4)}°</div>
+        </div>
+        <button class="btn-pin" onclick="event.stopPropagation();addPinFromSearch(${r.lat},${r.lon},'${esc(shortName)}',this.parentElement)">Pin</button>
+      </div>`;
+    }).join('');
+  } catch(err) {
+    statusEl.textContent = `Search failed: ${err.message}`;
+  }
+}
+
+async function addPinFromSearch(lat, lon, name, el) {
+  if (el) { const b = el.querySelector('.btn-pin'); if(b){b.disabled=true;b.textContent='Pinning…';} }
+  await savePin(name, lat, lon);
+  if (el) { const b = el.querySelector('.btn-pin'); if(b){b.textContent='Pinned';b.style.background='var(--green-mark)';} }
+}
+
+async function addPinFromCoords() {
+  const name = document.getElementById('pin-coord-name').value.trim();
+  const lat = parseFloat(document.getElementById('pin-coord-lat').value);
+  const lon = parseFloat(document.getElementById('pin-coord-lon').value);
+  if (!name) { alert('Enter a name for the pin.'); return; }
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    alert('Enter valid coordinates.'); return;
+  }
+  await savePin(name, lat, lon);
+  document.getElementById('pin-coord-name').value = '';
+  document.getElementById('pin-coord-lat').value = '';
+  document.getElementById('pin-coord-lon').value = '';
+}
+
+async function savePin(name, lat, lon) {
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/pins`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, lat, lon }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (data.pins) { pins = data.pins; renderPins(); }
+    else await loadPins();
+  } catch(err) {
+    alert('Failed to save pin: ' + err.message);
+  }
+}
+
+async function deletePin(id) {
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/pins/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (data.pins) { pins = data.pins; renderPins(); }
+    else await loadPins();
+  } catch(err) {
+    alert('Failed to remove pin: ' + err.message);
+  }
+}
+
+async function loadPins() {
+  if (!cfg.proxyUrl) return;
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/pins`);
+    const data = await res.json();
+    if (Array.isArray(data)) { pins = data; renderPins(); }
+  } catch(e) { /* silent */ }
+}
+
+function renderPins() {
+  // Map markers
+  Object.values(pinMarkers).forEach(m => map.removeLayer(m));
+  pinMarkers = {};
+  pins.forEach(p => {
+    const s = activePinId === p.id ? 22 : 16;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:${s}px;height:${s}px;background:var(--gold);border-radius:50%;border:3px solid var(--gold-light);box-shadow:0 0 0 1px rgba(0,0,0,.2),0 2px 6px rgba(0,0,0,.3);cursor:pointer;"></div>`,
+      iconSize: [s, s], iconAnchor: [s/2, s/2],
+    });
+    const m = L.marker([p.lat, p.lon], { icon }).addTo(map);
+    m.bindPopup(`<div class="pin-popup">
+      <div class="pin-popup-name">${esc(p.name)}</div>
+      <div class="pin-popup-coords">${p.lat.toFixed(4)}°, ${p.lon.toFixed(4)}°</div>
+      <a class="pin-popup-remove" onclick="deletePin('${p.id}')">Remove pin</a>
+    </div>`, { maxWidth:250 });
+    m.on('click', () => { activePinId = p.id; renderPinSidebar(); });
+    pinMarkers[p.id] = m;
+  });
+  renderPinSidebar();
+}
+
+function renderPinSidebar() {
+  const el = document.getElementById('pin-list');
+  if (!pins.length) { el.innerHTML = ''; return; }
+  el.innerHTML = pins.map(p => `<div class="pin-item ${activePinId===p.id?'active':''}" onclick="flyToPin('${p.id}')">
+    <div class="pin-dot"></div>
+    <div class="pin-info">
+      <div class="pin-name">${esc(p.name)}</div>
+      <div class="pin-coords">${p.lat.toFixed(3)}°, ${p.lon.toFixed(3)}°</div>
+    </div>
+    <button class="pin-remove-btn" onclick="event.stopPropagation();confirmDeletePin('${p.id}',this)" title="Remove pin">×</button>
+  </div>`).join('');
+}
+
+function flyToPin(id) {
+  activePinId = id;
+  const p = pins.find(x => x.id === id);
+  if (!p) return;
+  map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 8), { duration:1 });
+  if (pinMarkers[id]) pinMarkers[id].openPopup();
+  renderPinSidebar();
+}
+
+function confirmDeletePin(id, btnEl) {
+  btnEl.textContent = '?';
+  btnEl.style.opacity = '1';
+  btnEl.style.borderColor = 'var(--red)';
+  btnEl.style.background = 'rgba(176,58,46,.15)';
+  btnEl.onclick = (e) => { e.stopPropagation(); deletePin(id); };
+  setTimeout(() => {
+    if (btnEl.isConnected) {
+      btnEl.textContent = '×';
+      btnEl.style.opacity = '';
+      btnEl.style.borderColor = '';
+      btnEl.style.background = '';
+      btnEl.onclick = (e) => { e.stopPropagation(); confirmDeletePin(id, btnEl); };
+    }
+  }, 3000);
+}
+
+// ── Right-click to pin ────────────────────────────────────────────────────────
+map.on('contextmenu', function(e) {
+  if (!cfg.proxyUrl) return;
+  pendingPinLatLng = e.latlng;
+  const prompt = document.getElementById('map-pin-prompt');
+  const mapRect = document.getElementById('map').getBoundingClientRect();
+  let x = e.originalEvent.clientX - mapRect.left;
+  let y = e.originalEvent.clientY - mapRect.top;
+  prompt.style.left = Math.min(x, mapRect.width - 230) + 'px';
+  prompt.style.top = Math.min(y, mapRect.height - 120) + 'px';
+  document.getElementById('map-pin-coords').textContent = `${e.latlng.lat.toFixed(4)}°, ${e.latlng.lng.toFixed(4)}°`;
+  document.getElementById('map-pin-name').value = '';
+  prompt.classList.add('show');
+  setTimeout(() => document.getElementById('map-pin-name').focus(), 50);
+});
+
+function confirmMapPin() {
+  const name = document.getElementById('map-pin-name').value.trim();
+  if (!name || !pendingPinLatLng) return;
+  savePin(name, pendingPinLatLng.lat, pendingPinLatLng.lng);
+  cancelMapPin();
+}
+
+function cancelMapPin() {
+  document.getElementById('map-pin-prompt').classList.remove('show');
+  pendingPinLatLng = null;
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function toggleNOAA() {
   noaaVisible = !noaaVisible;
@@ -1175,6 +1570,7 @@ function hideError() { document.getElementById('error-banner').classList.remove(
 if (cfg.proxyUrl) {
   document.getElementById('api-status-bar').innerHTML = `Proxy: <span style="color:var(--green-mark)">Connected</span>`;
   loadVessels();
+  loadPins();
   startAutoRefresh();
 }
 </script>
