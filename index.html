@@ -530,6 +530,94 @@
     }
     .test-result.ok  { background:rgba(26,102,68,.08); border:1px solid rgba(26,102,68,.3); color:var(--green-mark); display:block; }
     .test-result.err { background:rgba(176,58,46,.08); border:1px solid rgba(176,58,46,.3); color:var(--red); display:block; }
+
+    /* ── FLEET MODAL ── */
+    .fleet-modal { width: 600px; }
+    .fleet-tabs { display:flex; gap:0; margin-bottom:20px; border-bottom:2px solid var(--border); }
+    .fleet-tab {
+      background: transparent; border:none; border-bottom:3px solid transparent;
+      padding: 10px 20px; margin-bottom:-2px;
+      font-family: 'Inconsolata', monospace; font-size: 11px;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: var(--ink-faint); cursor:pointer; transition: all .2s;
+    }
+    .fleet-tab:hover { color: var(--ink-light); }
+    .fleet-tab.active { color: var(--chart-blue); border-bottom-color: var(--chart-blue); }
+    .fleet-panel { display:none; }
+    .fleet-panel.active { display:block; }
+    .search-row { display:flex; gap:8px; margin-bottom:14px; }
+    .search-row input { flex:1; margin-bottom:0; }
+    .btn-search {
+      background: var(--chart-blue); border:none; color:white;
+      padding: 9px 18px; font-family:'Inconsolata',monospace;
+      font-size:12px; letter-spacing:.08em; cursor:pointer;
+      white-space:nowrap; transition: background .2s;
+    }
+    .btn-search:hover { background: var(--ink-mid); }
+    .search-status {
+      font-family:'Inconsolata',monospace; font-size:11px;
+      color:var(--ink-faint); margin-bottom:10px; letter-spacing:.06em;
+    }
+    .search-results { max-height:320px; overflow-y:auto; }
+    .search-results::-webkit-scrollbar { width:5px; }
+    .search-results::-webkit-scrollbar-thumb { background:var(--border-light); }
+    .sr-item {
+      display:flex; align-items:center; gap:12px;
+      padding:10px 12px; border-bottom:1px solid var(--paper-dark);
+      transition: background .15s;
+    }
+    .sr-item:hover { background:var(--chart-water); }
+    .sr-info { flex:1; min-width:0; }
+    .sr-name { font-size:13px; font-weight:700; color:var(--ink); }
+    .sr-meta {
+      font-family:'Inconsolata',monospace; font-size:10px;
+      color:var(--ink-faint); margin-top:2px; letter-spacing:.04em;
+    }
+    .btn-add {
+      background:var(--green-mark); border:none; color:white;
+      padding:5px 14px; font-family:'Inconsolata',monospace;
+      font-size:10px; letter-spacing:.08em; cursor:pointer;
+      white-space:nowrap; transition: background .2s;
+    }
+    .btn-add:hover { background:#145533; }
+    .btn-add:disabled { background:var(--ink-faint); cursor:default; }
+    .fleet-list-manage { max-height:400px; overflow-y:auto; }
+    .fleet-list-manage::-webkit-scrollbar { width:5px; }
+    .fleet-list-manage::-webkit-scrollbar-thumb { background:var(--border-light); }
+    .fl-item {
+      display:flex; align-items:center; gap:12px;
+      padding:10px 12px; border-bottom:1px solid var(--paper-dark);
+    }
+    .fl-info { flex:1; min-width:0; }
+    .fl-name { font-size:13px; font-weight:700; color:var(--ink); }
+    .fl-mmsi {
+      font-family:'Inconsolata',monospace; font-size:10px;
+      color:var(--ink-faint); margin-top:2px; letter-spacing:.04em;
+    }
+    .btn-remove {
+      background:transparent; border:1px solid var(--red); color:var(--red);
+      padding:5px 12px; font-family:'Inconsolata',monospace;
+      font-size:10px; letter-spacing:.08em; cursor:pointer;
+      white-space:nowrap; transition: all .2s;
+    }
+    .btn-remove:hover { background:rgba(176,58,46,.1); }
+    .btn-remove-confirm {
+      background:var(--red); border:1px solid var(--red); color:white;
+      padding:5px 12px; font-family:'Inconsolata',monospace;
+      font-size:10px; letter-spacing:.08em; cursor:pointer;
+      white-space:nowrap; animation: confirmPulse .6s;
+    }
+    @keyframes confirmPulse { 0%{transform:scale(1)} 50%{transform:scale(1.05)} 100%{transform:scale(1)} }
+    .vessel-item { position: relative; }
+    .vessel-remove-btn {
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      background:transparent; border:1px solid transparent; color:var(--red);
+      font-size:14px; cursor:pointer; padding:2px 6px; line-height:1;
+      opacity:0; transition: opacity .15s;
+      font-family:'Inconsolata',monospace;
+    }
+    .vessel-item:hover .vessel-remove-btn { opacity:.7; }
+    .vessel-remove-btn:hover { opacity:1 !important; border-color:var(--red); background:rgba(176,58,46,.08); }
   </style>
 </head>
 <body>
@@ -546,6 +634,7 @@
   <div class="header-right">
     <div class="live-badge"><div class="live-dot"></div>AIS Live</div>
     <div class="vessel-count">Vessels on chart: <strong id="vessel-count">0</strong></div>
+    <button class="cfg-btn" onclick="openFleetModal()">+ Manage Fleet</button>
     <button class="cfg-btn" onclick="openModal()">⚙ Configure</button>
   </div>
 </header>
@@ -628,13 +717,39 @@
     <div id="test-result" class="test-result"></div>
     <div class="modal-note">
       <strong>How it works:</strong> The Cloudflare Worker fetches vessel positions from
-      MyShipTracking for all 10 vessels in your fleet. All vessels are pre-configured in the Worker.
-      Paste your Worker URL above, test the connection, and save.
+      MyShipTracking for all vessels in your fleet. Use <strong>Manage Fleet</strong> to add
+      or remove vessels. Paste your Worker URL above, test the connection, and save.
     </div>
     <div class="modal-btns">
       <button class="btn-test" onclick="testProxy()">⚡ Test Connection</button>
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
       <button class="btn-save" onclick="saveConfig()">Save &amp; Load Chart</button>
+    </div>
+  </div>
+</div>
+
+<!-- FLEET MANAGEMENT MODAL -->
+<div class="modal-overlay" id="fleet-modal">
+  <div class="modal fleet-modal">
+    <h2>Manage Fleet</h2>
+    <p>Search for vessels by name and add them to your tracked fleet.</p>
+    <div class="fleet-tabs">
+      <button class="fleet-tab active" onclick="switchFleetTab('search')">Search &amp; Add</button>
+      <button class="fleet-tab" onclick="switchFleetTab('fleet')">Current Fleet</button>
+    </div>
+    <div id="fleet-panel-search" class="fleet-panel active">
+      <div class="search-row">
+        <input type="text" id="vessel-search-input" placeholder="Enter vessel name…" onkeydown="if(event.key==='Enter')doVesselSearch()" />
+        <button class="btn-search" onclick="doVesselSearch()">Search</button>
+      </div>
+      <div id="search-status" class="search-status"></div>
+      <div id="search-results" class="search-results"></div>
+    </div>
+    <div id="fleet-panel-fleet" class="fleet-panel">
+      <div id="fleet-list-manage" class="fleet-list-manage"></div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="btn-cancel" onclick="closeFleetModal()">Close</button>
     </div>
   </div>
 </div>
@@ -788,6 +903,7 @@ function renderSidebar(list) {
         ${hasPos ? '<div class="vessel-coords">' + v.lat.toFixed(3) + '°, ' + v.lon.toFixed(3) + '°</div>' : ''}
       </div>
       <div class="vessel-speed">${hasPos ? v.speed+'kn' : '—'}</div>
+      <button class="vessel-remove-btn" onclick="event.stopPropagation();confirmRemoveSidebar('${v.mmsi}',this)" title="Remove from fleet">×</button>
     </div>`;
   }).join('');
 }
@@ -857,6 +973,141 @@ function saveConfig() {
   loadVessels();
   startAutoRefresh();
 }
+
+// ── FLEET MANAGEMENT ──────────────────────────────────────────────────────────
+let searchDebounce = null;
+let lastSearchResults = [];
+
+function openFleetModal() {
+  if (!cfg.proxyUrl) { openModal(); return; }
+  document.getElementById('fleet-modal').classList.add('open');
+  document.getElementById('vessel-search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('search-status').textContent = '';
+  switchFleetTab('search');
+}
+function closeFleetModal() { document.getElementById('fleet-modal').classList.remove('open'); }
+
+function switchFleetTab(tab) {
+  document.querySelectorAll('.fleet-tab').forEach((t,i) => {
+    t.classList.toggle('active', (tab==='search' ? i===0 : i===1));
+  });
+  document.getElementById('fleet-panel-search').classList.toggle('active', tab==='search');
+  document.getElementById('fleet-panel-fleet').classList.toggle('active', tab==='fleet');
+  if (tab==='fleet') renderFleetList();
+}
+
+async function doVesselSearch() {
+  const query = document.getElementById('vessel-search-input').value.trim();
+  const statusEl = document.getElementById('search-status');
+  const resultsEl = document.getElementById('search-results');
+  if (query.length < 2) { statusEl.textContent = 'Enter at least 2 characters.'; return; }
+  statusEl.textContent = 'Searching…';
+  resultsEl.innerHTML = '';
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/search?name=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (!Array.isArray(data)) throw new Error('Unexpected response');
+    lastSearchResults = data;
+    statusEl.textContent = data.length ? `${data.length} vessel${data.length>1?'s':''} found` : 'No vessels found.';
+    renderSearchResults(data);
+  } catch(err) {
+    statusEl.textContent = `Search failed: ${err.message}`;
+  }
+}
+
+function renderSearchResults(results) {
+  const el = document.getElementById('search-results');
+  const trackedMMSIs = new Set(vessels.map(v => v.mmsi));
+  el.innerHTML = results.map(r => {
+    const tracked = trackedMMSIs.has(r.mmsi);
+    return `<div class="sr-item">
+      <div class="sr-info">
+        <div class="sr-name">${esc(r.name)}</div>
+        <div class="sr-meta">MMSI ${r.mmsi}${r.type ? ' · '+esc(r.type) : ''}${r.area ? ' · '+esc(r.area) : ''}</div>
+      </div>
+      ${tracked
+        ? '<span style="font-family:Inconsolata,monospace;font-size:10px;color:var(--green-mark);letter-spacing:.08em">TRACKING</span>'
+        : `<button class="btn-add" onclick="addVessel('${esc(r.name)}','${r.mmsi}','${esc(r.slug)}',this)">+ Add</button>`
+      }
+    </div>`;
+  }).join('');
+}
+
+async function addVessel(name, mmsi, slug, btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Adding…'; }
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/vessels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, mmsi, slug }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (btnEl) { btnEl.textContent = 'Added'; btnEl.style.background = 'var(--green-mark)'; }
+    loadVessels();
+  } catch(err) {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '+ Add'; }
+    alert('Failed to add vessel: ' + err.message);
+  }
+}
+
+function renderFleetList() {
+  const el = document.getElementById('fleet-list-manage');
+  if (!vessels.length) {
+    el.innerHTML = '<div class="empty-msg">No vessels in fleet.</div>';
+    return;
+  }
+  el.innerHTML = vessels.map(v => `<div class="fl-item" id="fl-${v.mmsi}">
+    <div class="fl-info">
+      <div class="fl-name">${esc(v.name)}</div>
+      <div class="fl-mmsi">MMSI ${v.mmsi}</div>
+    </div>
+    <button class="btn-remove" onclick="confirmRemove('${v.mmsi}',this)">Remove</button>
+  </div>`).join('');
+}
+
+function confirmRemove(mmsi, btnEl) {
+  btnEl.className = 'btn-remove-confirm';
+  btnEl.textContent = 'Confirm?';
+  btnEl.onclick = () => removeVessel(mmsi);
+  setTimeout(() => {
+    if (btnEl.className === 'btn-remove-confirm') {
+      btnEl.className = 'btn-remove';
+      btnEl.textContent = 'Remove';
+      btnEl.onclick = () => confirmRemove(mmsi, btnEl);
+    }
+  }, 3000);
+}
+
+async function removeVessel(mmsi) {
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/vessels/${mmsi}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    loadVessels().then(() => renderFleetList());
+  } catch(err) {
+    alert('Failed to remove vessel: ' + err.message);
+  }
+}
+
+function confirmRemoveSidebar(mmsi, btnEl) {
+  btnEl.textContent = '?';
+  btnEl.style.opacity = '1';
+  btnEl.style.borderColor = 'var(--red)';
+  btnEl.style.background = 'rgba(176,58,46,.15)';
+  btnEl.onclick = (e) => { e.stopPropagation(); removeVessel(mmsi); };
+  setTimeout(() => {
+    btnEl.textContent = '×';
+    btnEl.style.opacity = '';
+    btnEl.style.borderColor = '';
+    btnEl.style.background = '';
+    btnEl.onclick = (e) => { e.stopPropagation(); confirmRemoveSidebar(mmsi, btnEl); };
+  }, 3000);
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function toggleNOAA() {
