@@ -767,8 +767,8 @@ const COLORS = ['#b03a2e','#1a6644','#3a6ea8','#7d3c98','#d68910','#1a5276','#78
 let cfg = { proxyUrl: localStorage.getItem(STORE.proxy) || '' };
 
 // ── MAP ───────────────────────────────────────────────────────────────────────
-const ATLANTIC_VIEW = { center:[20,-30], zoom:2 };  // Americas left, Africa/Europe right
-const PACIFIC_VIEW  = { center:[20,180], zoom:2 };  // Asia left, Americas right
+const ATLANTIC_VIEW = { center:[20,0], zoom:2 };    // 180° on edges, 0° centered
+const PACIFIC_VIEW  = { center:[20,180], zoom:2 };  // 180° centered, 0° on edges
 const map = L.map('map', { center:ATLANTIC_VIEW.center, zoom:ATLANTIC_VIEW.zoom, zoomControl:false });
 L.control.zoom({ position:'topleft' }).addTo(map);
 
