@@ -146,21 +146,21 @@ function parseSearchResults(html) {
     if (!nameMatch) continue;
     const name = nameMatch[1].trim();
 
-    // Extract type from td cells — typically the 4th column
-    const cells = row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [];
-    let type = "";
-    let area = "";
-    // Type is usually in 4th cell, area in 5th
-    if (cells.length >= 4) {
-      const typeText = cells[3].replace(/<[^>]+>/g, "").trim();
-      if (typeText && typeText.length < 60) type = typeText;
-    }
-    if (cells.length >= 5) {
-      const areaText = cells[4].replace(/<[^>]+>/g, "").trim();
-      if (areaText && areaText.length < 60) area = areaText;
-    }
+    // Extract flag from img title attribute
+    let flag = "";
+    const flagMatch = row.match(/<img[^>]*title="([^"]+)"/i);
+    if (flagMatch) flag = flagMatch[1].trim();
 
-    results.push({ name, mmsi, slug, type, area });
+    // Extract fields from td cells
+    // Columns: 0=Flag+Name, 1=MMSI, 2=Type, 3=Area, 4=Speed, 5=Destination, 6=Received
+    const cells = row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [];
+    const cellText = (i) => (cells[i] || "").replace(/<[^>]+>/g, "").trim();
+    const type = cellText(2);
+    const area = cellText(3);
+    const speed = cellText(4);
+    const destination = cellText(5);
+
+    results.push({ name, mmsi, slug, flag, type, area, speed, destination });
 
     if (results.length >= 20) break;
   }

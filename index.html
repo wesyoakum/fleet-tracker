@@ -1031,8 +1031,9 @@ function renderSearchResults(results) {
     const tracked = trackedMMSIs.has(r.mmsi);
     return `<div class="sr-item">
       <div class="sr-info">
-        <div class="sr-name">${esc(r.name)}</div>
-        <div class="sr-meta">MMSI ${r.mmsi}${r.type ? ' · '+esc(r.type) : ''}${r.area ? ' · '+esc(r.area) : ''}</div>
+        <div class="sr-name">${esc(r.name)}${r.flag ? ' <span style="color:var(--ink-faint);font-weight:400;font-size:11px">('+esc(r.flag)+')</span>' : ''}</div>
+        <div class="sr-meta">${r.type || 'Unknown type'} · ${r.area || 'Unknown area'}</div>
+        <div class="sr-meta">MMSI ${r.mmsi}${r.speed ? ' · '+esc(r.speed) : ''}${r.destination && r.destination !== '---' ? ' · Dest: '+esc(r.destination) : ''}</div>
       </div>
       ${tracked
         ? '<span style="font-family:Inconsolata,monospace;font-size:10px;color:var(--green-mark);letter-spacing:.08em">TRACKING</span>'
