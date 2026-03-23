@@ -1008,7 +1008,7 @@ let cfg = { proxyUrl: localStorage.getItem(STORE.proxy) || '' };
 // ── MAP ───────────────────────────────────────────────────────────────────────
 const ATLANTIC_VIEW = { center:[20,0], zoom:2 };    // 180° on edges, 0° centered
 const PACIFIC_VIEW  = { center:[20,180], zoom:2 };  // 180° centered, 0° on edges
-const map = L.map('map', { center:ATLANTIC_VIEW.center, zoom:ATLANTIC_VIEW.zoom, zoomControl:false });
+const map = L.map('map', { center:ATLANTIC_VIEW.center, zoom:ATLANTIC_VIEW.zoom, zoomControl:false, worldCopyJump:true });
 L.control.zoom({ position:'topleft' }).addTo(map);
 
 // OpenStreetMap base — always loads everywhere, good ocean coverage
