@@ -139,7 +139,7 @@ export default {
     if (url.pathname === "/pins" && request.method === "POST") {
       try {
         const body = await request.json();
-        const { name, lat, lon } = body;
+        const { name, lat, lon, color } = body;
         if (!name || lat == null || lon == null) {
           return json({ error: "Required fields: name, lat, lon" }, 400);
         }
@@ -148,7 +148,9 @@ export default {
           return json({ error: `Maximum ${MAX_PINS} pins reached` }, 400);
         }
         const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-        pins.push({ id, name, lat: parseFloat(lat), lon: parseFloat(lon) });
+        const pin = { id, name, lat: parseFloat(lat), lon: parseFloat(lon) };
+        if (color) pin.color = color;
+        pins.push(pin);
         await putPins(env, pins);
         return json({ ok: true, pins });
       } catch (err) {

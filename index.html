@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fleet Tracker — Vessel Locations</title>
+  <title>C-Track — Global Activities Map</title>
   <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Inconsolata:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -719,6 +719,20 @@
     .coord-row { display:flex; gap:10px; margin-bottom:14px; }
     .coord-row input { flex:1; margin-bottom:0; }
     .coord-row .btn-pin { padding:9px 18px; font-size:12px; }
+    .color-picker-row {
+      display:flex; align-items:center; gap:6px; margin-bottom:14px;
+    }
+    .color-picker-label {
+      font-family:'Inconsolata',monospace; font-size:9px;
+      letter-spacing:.18em; color:var(--ink-faint); text-transform:uppercase;
+      margin-right:4px;
+    }
+    .color-swatch {
+      width:20px; height:20px; border-radius:50%; cursor:pointer;
+      border:2px solid transparent; transition: border-color .15s, transform .1s;
+    }
+    .color-swatch:hover { transform:scale(1.15); }
+    .color-swatch.selected { border-color:var(--ink); transform:scale(1.2); }
 
     /* Pin popup on map */
     .pin-popup {
@@ -740,6 +754,28 @@
       color:var(--red); cursor:pointer; text-decoration:none; letter-spacing:.06em;
     }
     .pin-popup-remove:hover { text-decoration:underline; }
+
+    /* ── SIDEBAR RESIZE ── */
+    .sidebar-resize {
+      width: 5px; cursor: col-resize;
+      background: transparent; border: none;
+      position: absolute; right: -3px; top: 0; bottom: 0;
+      z-index: 10; transition: background .15s;
+    }
+    .sidebar-resize:hover, .sidebar-resize.dragging {
+      background: var(--chart-blue);
+    }
+    .sidebar { position: relative; }
+
+    /* ── HQ MARKER ── */
+    .hq-marker {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--paper); border: 3px solid var(--chart-blue);
+      box-shadow: 0 0 0 2px rgba(58,110,168,.3), 0 2px 8px rgba(0,0,0,.3);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+    .hq-marker img { width: 18px; height: 18px; border-radius: 50%; }
 
     /* Right-click prompt */
     .map-pin-prompt {
@@ -766,10 +802,10 @@
 <!-- HEADER -->
 <header>
   <div class="logo">
-    <div class="logo-icon">⚓</div>
+    <div class="logo-icon"><img src="https://www.c-lars.com/favicon.ico" alt="C-LARS" style="width:22px;height:22px;" /></div>
     <div>
-      <div class="logo-text">Fleet<span>Track</span></div>
-      <div class="logo-sub">Vessel Position System</div>
+      <div class="logo-text">C-<span>Track</span></div>
+      <div class="logo-sub">Global Activities Map</div>
     </div>
   </div>
   <div class="header-right">
@@ -784,7 +820,8 @@
 <div class="main">
 
   <!-- SIDEBAR -->
-  <div class="sidebar">
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-resize" id="sidebar-resize"></div>
     <div class="sidebar-header">
       <div class="sidebar-title">Tracked Fleet</div>
       <input class="search-box" type="text" placeholder="Search vessel…" oninput="filterVessels(this.value)" />
@@ -853,7 +890,8 @@
     <div class="map-pin-prompt" id="map-pin-prompt">
       <div style="font-family:'Inconsolata',monospace;font-size:9px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:6px">Pin Location</div>
       <input type="text" id="map-pin-name" placeholder="Name this pin…" onkeydown="if(event.key==='Enter')confirmMapPin()" />
-      <div id="map-pin-coords" style="font-family:'Inconsolata',monospace;font-size:10px;color:var(--ink-faint);margin-bottom:8px"></div>
+      <div id="map-pin-coords" style="font-family:'Inconsolata',monospace;font-size:10px;color:var(--ink-faint);margin-bottom:6px"></div>
+      <div id="pin-color-map" class="color-picker-row" style="margin-bottom:8px"></div>
       <div class="map-pin-prompt-btns">
         <button class="btn-pin" onclick="confirmMapPin()">Pin</button>
         <button style="background:transparent;border:1px solid var(--border-light);color:var(--ink-light)" onclick="cancelMapPin()">Cancel</button>
@@ -933,12 +971,14 @@
         <input type="text" id="pin-search-input" placeholder="City, port, landmark…" onkeydown="if(event.key==='Enter')doPinSearch()" />
         <button class="btn-search" onclick="doPinSearch()">Search</button>
       </div>
+      <div id="pin-color-search" class="color-picker-row"></div>
       <div id="pin-search-status" class="search-status"></div>
-      <div id="pin-search-results" class="search-results" style="max-height:280px"></div>
+      <div id="pin-search-results" class="search-results" style="max-height:260px"></div>
     </div>
     <div id="pin-panel-coords" class="pin-panel">
       <label>Name</label>
       <input type="text" id="pin-coord-name" placeholder="Pin name…" />
+      <div id="pin-color-coords" class="color-picker-row"></div>
       <div class="coord-row">
         <div style="flex:1">
           <label>Latitude</label>
@@ -1319,6 +1359,25 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 
 // ── PINS ──────────────────────────────────────────────────────────────────────
 let pins = [], pinMarkers = {}, activePinId = null, pendingPinLatLng = null;
+const PIN_COLORS = ['#8b6914','#b03a2e','#1a6644','#3a6ea8','#7d3c98','#d68910','#1a5276','#784212','#117a65','#2e4057'];
+let selectedPinColor = null;
+
+function renderColorPicker(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = '<span class="color-picker-label">Color</span>' +
+    '<div class="color-swatch' + (!selectedPinColor ? ' selected' : '') + '" style="background:var(--gold);position:relative" onclick="selectPinColor(null,\'' + containerId + '\')" title="Auto">' +
+    (!selectedPinColor ? '<span style="position:absolute;font-size:10px;color:white;font-weight:bold">A</span>' : '') + '</div>' +
+    PIN_COLORS.map(c =>
+      `<div class="color-swatch${selectedPinColor===c?' selected':''}" style="background:${c}" onclick="selectPinColor('${c}','${containerId}')" title="${c}"></div>`
+    ).join('');
+}
+
+function selectPinColor(color, containerId) {
+  selectedPinColor = color;
+  // Re-render all three color pickers to stay in sync
+  ['pin-color-search','pin-color-coords','pin-color-map'].forEach(id => renderColorPicker(id));
+}
 
 function openPinModal() {
   if (!cfg.proxyUrl) { openModal(); return; }
@@ -1326,6 +1385,9 @@ function openPinModal() {
   document.getElementById('pin-search-input').value = '';
   document.getElementById('pin-search-results').innerHTML = '';
   document.getElementById('pin-search-status').textContent = '';
+  selectedPinColor = null;
+  renderColorPicker('pin-color-search');
+  renderColorPicker('pin-color-coords');
   switchPinTab('search');
 }
 function closePinModal() { document.getElementById('pin-modal').classList.remove('open'); }
@@ -1367,7 +1429,7 @@ async function doPinSearch() {
 
 async function addPinFromSearch(lat, lon, name, el) {
   if (el) { const b = el.querySelector('.btn-pin'); if(b){b.disabled=true;b.textContent='Pinning…';} }
-  await savePin(name, lat, lon);
+  await savePin(name, lat, lon, selectedPinColor);
   if (el) { const b = el.querySelector('.btn-pin'); if(b){b.textContent='Pinned';b.style.background='var(--green-mark)';} }
 }
 
@@ -1379,18 +1441,20 @@ async function addPinFromCoords() {
   if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
     alert('Enter valid coordinates.'); return;
   }
-  await savePin(name, lat, lon);
+  await savePin(name, lat, lon, selectedPinColor);
   document.getElementById('pin-coord-name').value = '';
   document.getElementById('pin-coord-lat').value = '';
   document.getElementById('pin-coord-lon').value = '';
 }
 
-async function savePin(name, lat, lon) {
+async function savePin(name, lat, lon, color) {
   try {
+    const payload = { name, lat, lon };
+    if (color) payload.color = color;
     const res = await fetch(`${cfg.proxyUrl}/pins`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, lat, lon }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -1426,13 +1490,15 @@ function renderPins() {
   // Map markers
   Object.values(pinMarkers).forEach(m => map.removeLayer(m));
   pinMarkers = {};
-  pins.forEach(p => {
+  pins.forEach((p, i) => {
+    const color = p.color || PIN_COLORS[i % PIN_COLORS.length];
     const s = activePinId === p.id ? 22 : 16;
     const icon = L.divIcon({
       className: '',
-      html: `<div style="width:${s}px;height:${s}px;background:var(--gold);border-radius:50%;border:3px solid var(--gold-light);box-shadow:0 0 0 1px rgba(0,0,0,.2),0 2px 6px rgba(0,0,0,.3);cursor:pointer;"></div>`,
+      html: `<div style="width:${s}px;height:${s}px;background:${color};border-radius:50%;border:3px solid ${color}88;box-shadow:0 0 0 1px rgba(0,0,0,.2),0 2px 6px rgba(0,0,0,.3);cursor:pointer;"></div>`,
       iconSize: [s, s], iconAnchor: [s/2, s/2],
     });
+    p._color = color;
     const m = L.marker([p.lat, p.lon], { icon }).addTo(map);
     m.bindPopup(`<div class="pin-popup">
       <div class="pin-popup-name">${esc(p.name)}</div>
@@ -1448,14 +1514,17 @@ function renderPins() {
 function renderPinSidebar() {
   const el = document.getElementById('pin-list');
   if (!pins.length) { el.innerHTML = ''; return; }
-  el.innerHTML = pins.map(p => `<div class="pin-item ${activePinId===p.id?'active':''}" onclick="flyToPin('${p.id}')">
-    <div class="pin-dot"></div>
+  el.innerHTML = pins.map((p, i) => {
+    const color = p._color || p.color || PIN_COLORS[i % PIN_COLORS.length];
+    return `<div class="pin-item ${activePinId===p.id?'active':''}" onclick="flyToPin('${p.id}')">
+    <div class="pin-dot" style="background:${color};border-color:${color}88"></div>
     <div class="pin-info">
       <div class="pin-name">${esc(p.name)}</div>
       <div class="pin-coords">${p.lat.toFixed(3)}°, ${p.lon.toFixed(3)}°</div>
     </div>
     <button class="pin-remove-btn" onclick="event.stopPropagation();confirmDeletePin('${p.id}',this)" title="Remove pin">×</button>
-  </div>`).join('');
+  </div>`;
+  }).join('');
 }
 
 function flyToPin(id) {
@@ -1496,6 +1565,8 @@ map.on('contextmenu', function(e) {
   prompt.style.top = Math.min(y, mapRect.height - 120) + 'px';
   document.getElementById('map-pin-coords').textContent = `${e.latlng.lat.toFixed(4)}°, ${e.latlng.lng.toFixed(4)}°`;
   document.getElementById('map-pin-name').value = '';
+  selectedPinColor = null;
+  renderColorPicker('pin-color-map');
   prompt.classList.add('show');
   setTimeout(() => document.getElementById('map-pin-name').focus(), 50);
 });
@@ -1503,7 +1574,7 @@ map.on('contextmenu', function(e) {
 function confirmMapPin() {
   const name = document.getElementById('map-pin-name').value.trim();
   if (!name || !pendingPinLatLng) return;
-  savePin(name, pendingPinLatLng.lat, pendingPinLatLng.lng);
+  savePin(name, pendingPinLatLng.lat, pendingPinLatLng.lng, selectedPinColor);
   cancelMapPin();
 }
 
@@ -1511,6 +1582,33 @@ function cancelMapPin() {
   document.getElementById('map-pin-prompt').classList.remove('show');
   pendingPinLatLng = null;
 }
+
+// ── SIDEBAR RESIZE ────────────────────────────────────────────────────────────
+(function() {
+  const handle = document.getElementById('sidebar-resize');
+  const sidebar = document.getElementById('sidebar');
+  let dragging = false, startX, startW;
+  handle.addEventListener('mousedown', (e) => {
+    dragging = true; startX = e.clientX; startW = sidebar.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const w = Math.max(180, Math.min(600, startW + (e.clientX - startX)));
+    sidebar.style.width = w + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    setTimeout(() => map.invalidateSize(), 50);
+  });
+})();
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function toggleNOAA() {
@@ -1567,6 +1665,20 @@ function showError(msg) { const e=document.getElementById('error-banner'); e.tex
 function hideError() { document.getElementById('error-banner').classList.remove('show'); }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
+// ── C-LARS HQ marker (permanent) ──────────────────────────────────────────────
+const HQ = { lat: 30.6280, lon: -96.4739, name: 'C-LARS HQ', address: '8326 TX-21 W, Bryan, TX 77807' };
+const hqIcon = L.divIcon({
+  className: '',
+  html: '<div class="hq-marker"><img src="https://www.c-lars.com/favicon.ico" alt="C-LARS" /></div>',
+  iconSize: [28, 28], iconAnchor: [14, 14],
+});
+const hqMarker = L.marker([HQ.lat, HQ.lon], { icon: hqIcon, zIndexOffset: 1000 }).addTo(map);
+hqMarker.bindPopup(`<div class="pin-popup">
+  <div class="pin-popup-name">${HQ.name}</div>
+  <div class="pin-popup-coords" style="margin-bottom:4px">${HQ.address}</div>
+  <div class="pin-popup-coords">${HQ.lat.toFixed(4)}°, ${HQ.lon.toFixed(4)}°</div>
+</div>`, { maxWidth:250 });
+
 if (cfg.proxyUrl) {
   document.getElementById('api-status-bar').innerHTML = `Proxy: <span style="color:var(--green-mark)">Connected</span>`;
   loadVessels();
