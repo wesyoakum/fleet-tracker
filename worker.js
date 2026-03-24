@@ -1,10 +1,24 @@
 // ============================================================
-//  FleetTrack — MyShipTracking Scraper (Cloudflare Worker)
-//  Requires KV namespace binding: FLEET_KV
+//  C-Track — Cloudflare Worker
+//  Requires: KV namespace binding FLEET_KV
+//  Optional: OPENSKY_CLIENT_ID, OPENSKY_CLIENT_SECRET env vars
 // ============================================================
 const ALLOWED_ORIGIN = "https://wesyoakum.github.io";
 const MAX_FLEET_SIZE = 30;
 const MAX_PINS = 50;
+const MAX_FLIGHTS = 20;
+
+// IATA → ICAO airline code mapping (common carriers)
+const AIRLINE_MAP = {
+  "AA":"AAL","UA":"UAL","DL":"DAL","WN":"SWA","AS":"ASA","B6":"JBU",
+  "NK":"NKS","F9":"FFT","G4":"AAY","HA":"HAL","SY":"SCX","XP":"CXP",
+  "BA":"BAW","LH":"DLH","AF":"AFR","KL":"KLM","EK":"UAE","QR":"QTR",
+  "SQ":"SIA","CX":"CPA","QF":"QFA","AC":"ACA","WS":"WJA","AM":"AMX",
+  "AV":"AVA","CM":"CMP","LA":"LAN","TP":"TAP","IB":"IBE","FR":"RYR",
+  "U2":"EZY","W6":"WZZ","TK":"THY","ET":"ETH","SA":"SAA","NH":"ANA",
+  "JL":"JAL","KE":"KAL","OZ":"AAR","CI":"CAL","BR":"EVA","MH":"MAS",
+  "GA":"GIA","PR":"PAL","VN":"HVN","AI":"AIC","5X":"UPS","FX":"FDX",
+};
 
 // Seed data — written to KV on first access
 const SEED_VESSELS = [
@@ -40,6 +54,54 @@ async function getPins(env) {
 
 async function putPins(env, pins) {
   await env.FLEET_KV.put("pins", JSON.stringify(pins));
+}
+
+// ── Flight KV helpers ─────────────────────────────────────────────────────────
+async function getFlights(env) {
+  const stored = await env.FLEET_KV.get("flights", { type: "json" });
+  return stored || [];
+}
+
+async function putFlights(env, flights) {
+  await env.FLEET_KV.put("flights", JSON.stringify(flights));
+}
+
+// ── OpenSky OAuth2 ────────────────────────────────────────────────────────────
+const OPENSKY_TOKEN_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
+const OPENSKY_API = "https://opensky-network.org/api";
+
+let cachedToken = null;
+let tokenExpiry = 0;
+
+async function getOpenSkyToken(env) {
+  const clientId = env.OPENSKY_CLIENT_ID;
+  const clientSecret = env.OPENSKY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+
+  const res = await fetch(OPENSKY_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`,
+  });
+  if (!res.ok) throw new Error(`OpenSky auth failed: HTTP ${res.status}`);
+  const data = await res.json();
+  cachedToken = data.access_token;
+  tokenExpiry = Date.now() + (data.expires_in - 60) * 1000; // refresh 60s early
+  return cachedToken;
+}
+
+function flightNumberToCallsign(flightNum) {
+  // "UA2145" → "UAL2145", "AAL100" stays as-is
+  const m = flightNum.toUpperCase().trim().match(/^([A-Z]{2,3})(\d+)$/);
+  if (!m) return flightNum.toUpperCase().trim();
+  const prefix = m[1];
+  const num = m[2];
+  // If already 3-letter ICAO, use as-is
+  if (prefix.length === 3) return prefix + num;
+  // Map 2-letter IATA to 3-letter ICAO
+  return (AIRLINE_MAP[prefix] || prefix) + num;
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -172,6 +234,106 @@ export default {
       return json({ ok: true, pins });
     }
 
+    // GET /flights — return tracked flights with live positions
+    if (url.pathname === "/flights" && request.method === "GET") {
+      try {
+        let flights = await getFlights(env);
+        if (!flights.length) return json([]);
+
+        // Clean up landed flights older than 30 minutes
+        const now = Date.now();
+        const before = flights.length;
+        flights = flights.filter(f => {
+          if (f.landedAt && now - f.landedAt > 30 * 60 * 1000) return false;
+          return true;
+        });
+        if (flights.length !== before) await putFlights(env, flights);
+
+        // Fetch live positions from OpenSky
+        const token = await getOpenSkyToken(env);
+        if (!token) {
+          return json(flights.map(f => ({ ...f, error: "OpenSky not configured" })));
+        }
+
+        const stateData = await fetchOpenSkyStates(token);
+        if (!stateData) return json(flights.map(f => ({ ...f, error: "OpenSky unavailable" })));
+
+        // Match flights by callsign
+        let changed = false;
+        const result = flights.map(f => {
+          const cs = f.callsign.toUpperCase().trim();
+          const sv = stateData.find(s => s[1] && s[1].trim().toUpperCase() === cs);
+          if (sv) {
+            const updated = {
+              ...f,
+              icao24: sv[0],
+              lat: sv[6],
+              lon: sv[5],
+              altitude: sv[7] != null ? Math.round(sv[7] * 3.28084) : null, // meters → feet
+              speed: sv[9] != null ? Math.round(sv[9] * 1.94384) : null, // m/s → knots
+              heading: sv[10] != null ? Math.round(sv[10]) : null,
+              verticalRate: sv[11] != null ? Math.round(sv[11] * 196.85) : null, // m/s → ft/min
+              onGround: sv[8],
+              lastSeen: sv[4],
+              error: null,
+            };
+            if (sv[8] && !f.landedAt) { updated.landedAt = Date.now(); changed = true; }
+            if (!sv[8] && f.landedAt) { updated.landedAt = null; changed = true; }
+            return updated;
+          }
+          return { ...f, lat: null, lon: null, error: "Not airborne" };
+        });
+
+        if (changed) {
+          await putFlights(env, result.map(f => ({
+            callsign: f.callsign, label: f.label, addedAt: f.addedAt, landedAt: f.landedAt || null,
+          })));
+        }
+        return json(result);
+      } catch (err) {
+        return json({ error: `Flight fetch failed: ${err.message}` }, 502);
+      }
+    }
+
+    // POST /flights — add a flight to track
+    if (url.pathname === "/flights" && request.method === "POST") {
+      try {
+        const body = await request.json();
+        const { flightNumber, label } = body;
+        if (!flightNumber) return json({ error: "Required: flightNumber" }, 400);
+        const callsign = flightNumberToCallsign(flightNumber);
+        let flights = await getFlights(env);
+        if (flights.find(f => f.callsign === callsign)) {
+          return json({ error: "Flight already tracked", flights }, 409);
+        }
+        if (flights.length >= MAX_FLIGHTS) {
+          return json({ error: `Maximum ${MAX_FLIGHTS} tracked flights` }, 400);
+        }
+        flights.push({
+          callsign,
+          label: label || flightNumber.toUpperCase(),
+          addedAt: Date.now(),
+          landedAt: null,
+        });
+        await putFlights(env, flights);
+        return json({ ok: true, flights });
+      } catch (err) {
+        return json({ error: `Invalid request: ${err.message}` }, 400);
+      }
+    }
+
+    // DELETE /flights/:callsign — remove a tracked flight
+    const flightDelMatch = url.pathname.match(/^\/flights\/([A-Z0-9]+)$/i);
+    if (flightDelMatch && request.method === "DELETE") {
+      const callsign = flightDelMatch[1].toUpperCase();
+      let flights = await getFlights(env);
+      const idx = flights.findIndex(f => f.callsign === callsign);
+      if (idx === -1) return json({ error: "Flight not found" }, 404);
+      flights.splice(idx, 1);
+      await putFlights(env, flights);
+      return json({ ok: true, flights });
+    }
+
     return json({ error: "Not found" }, 404);
   },
 };
@@ -234,6 +396,16 @@ function parseSearchResults(html) {
   }
 
   return results;
+}
+
+// ── OpenSky state vectors ─────────────────────────────────────────────────────
+async function fetchOpenSkyStates(token) {
+  const res = await fetch(`${OPENSKY_API}/states/all`, {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.states || [];
 }
 
 // ── Geocode via Nominatim ─────────────────────────────────────────────────────

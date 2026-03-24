@@ -755,6 +755,91 @@
     }
     .pin-popup-remove:hover { text-decoration:underline; }
 
+    /* ── FLIGHTS ── */
+    .flight-section {
+      border-top: 2px solid var(--border);
+      flex-shrink: 0; max-height: 35%;
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .flight-header {
+      padding: 10px 18px 8px; background: var(--paper-darker);
+      border-bottom: 1px solid var(--border-light);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .flight-title {
+      font-family: 'Inconsolata', monospace; font-size: 9px;
+      letter-spacing: .2em; color: var(--ink-faint); text-transform: uppercase;
+    }
+    .btn-add-flight {
+      background: transparent; border: 1px solid var(--chart-blue);
+      color: var(--chart-blue); padding: 2px 8px;
+      font-family: 'Inconsolata', monospace; font-size: 9px;
+      letter-spacing: .08em; cursor: pointer; transition: all .2s;
+    }
+    .btn-add-flight:hover { background: rgba(58,110,168,.1); }
+    .flight-list { flex:1; overflow-y:auto; padding:2px 0; }
+    .flight-list::-webkit-scrollbar { width:5px; }
+    .flight-list::-webkit-scrollbar-thumb { background:var(--border-light); }
+    .flight-item {
+      padding: 8px 18px; cursor: pointer;
+      border-left: 3px solid transparent;
+      border-bottom: 1px solid var(--paper-darker);
+      transition: all .15s; display: flex; align-items: center; gap: 10px;
+      position: relative;
+    }
+    .flight-item:hover { background: rgba(58,110,168,.08); }
+    .flight-item.active { background: rgba(58,110,168,.12); border-left-color: var(--chart-blue); }
+    .flight-icon {
+      font-size: 14px; flex-shrink: 0; line-height: 1;
+    }
+    .flight-info { flex:1; min-width:0; }
+    .flight-name {
+      font-size: 11px; font-weight: 700; color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .flight-status {
+      font-family: 'Inconsolata', monospace; font-size: 9px;
+      color: var(--ink-faint); margin-top: 1px; letter-spacing: .04em;
+    }
+    .flight-remove-btn {
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      background:transparent; border:1px solid transparent; color:var(--red);
+      font-size:14px; cursor:pointer; padding:2px 6px; line-height:1;
+      opacity:0; transition: opacity .15s;
+      font-family:'Inconsolata',monospace;
+    }
+    .flight-item:hover .flight-remove-btn { opacity:.7; }
+    .flight-remove-btn:hover { opacity:1 !important; border-color:var(--red); background:rgba(176,58,46,.08); }
+
+    /* Flight popup */
+    .flight-popup {
+      background: var(--paper); border: 1.5px solid var(--chart-blue);
+      width: 220px; box-shadow: 3px 3px 0 var(--border-light), 0 8px 24px rgba(0,0,0,.2);
+      position: relative;
+    }
+    .flight-popup-header {
+      background: var(--paper-darker); border-bottom: 1.5px solid var(--chart-blue);
+      padding: 8px 12px;
+    }
+    .flight-popup-name {
+      font-family: 'IM Fell English', serif; font-size: 15px; color: var(--ink);
+    }
+    .flight-popup-cs {
+      font-family: 'Inconsolata', monospace; font-size: 9px;
+      color: var(--ink-faint); letter-spacing: .1em; text-transform: uppercase;
+    }
+    .flight-popup-body { padding: 10px 12px; }
+    .flight-popup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .flight-popup-stat label {
+      font-family: 'Inconsolata', monospace; font-size: 8px;
+      letter-spacing: .15em; color: var(--ink-faint); text-transform: uppercase;
+      display: block; margin-bottom: 1px;
+    }
+    .flight-popup-stat value {
+      font-family: 'Inconsolata', monospace; font-size: 11px;
+      color: var(--chart-blue); font-weight: 600;
+    }
+
     /* ── SIDEBAR RESIZE ── */
     .sidebar-resize {
       width: 5px; cursor: col-resize;
@@ -829,6 +914,14 @@
     <div id="error-banner" class="error-banner"></div>
     <div class="vessel-list" id="vessel-list">
       <div class="empty-msg">Configure the proxy<br>to chart your fleet</div>
+    </div>
+    <!-- FLIGHT SECTION -->
+    <div class="flight-section">
+      <div class="flight-header">
+        <div class="flight-title">Tracked Flights</div>
+        <button class="btn-add-flight" onclick="openFlightModal()">+ Flight</button>
+      </div>
+      <div class="flight-list" id="flight-list"></div>
     </div>
     <!-- PIN SECTION -->
     <div class="pin-section">
@@ -995,6 +1088,26 @@
     </div>
     <div class="modal-btns" style="margin-top:16px">
       <button class="btn-cancel" onclick="closePinModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- FLIGHT MODAL -->
+<div class="modal-overlay" id="flight-modal">
+  <div class="modal" style="width:440px">
+    <h2>Track a Flight</h2>
+    <p>Enter a flight number to track its live position.</p>
+    <label>Flight Number</label>
+    <input type="text" id="flight-number-input" placeholder="e.g. UA2145, DL400, BA178" style="text-transform:uppercase" onkeydown="if(event.key==='Enter')addFlight()" />
+    <div id="flight-add-status" class="search-status"></div>
+    <div class="modal-note">
+      <strong>How it works:</strong> The flight number is converted to an ICAO callsign
+      and tracked via OpenSky Network. Flights auto-remove 30 minutes after landing.
+      Positions refresh every 5 minutes.
+    </div>
+    <div class="modal-btns">
+      <button class="btn-search" onclick="addFlight()">Track Flight</button>
+      <button class="btn-cancel" onclick="closeFlightModal()">Close</button>
     </div>
   </div>
 </div>
@@ -1218,7 +1331,9 @@ function saveConfig() {
   closeModal();
   loadVessels();
   loadPins();
+  loadFlights();
   startAutoRefresh();
+  startFlightRefresh();
 }
 
 // ── FLEET MANAGEMENT ──────────────────────────────────────────────────────────
@@ -1583,6 +1698,154 @@ function cancelMapPin() {
   pendingPinLatLng = null;
 }
 
+// ── FLIGHTS ───────────────────────────────────────────────────────────────────
+let flights = [], flightMarkers = {}, activeFlightCs = null, flightRefreshTimer = null;
+
+function openFlightModal() {
+  if (!cfg.proxyUrl) { openModal(); return; }
+  document.getElementById('flight-modal').classList.add('open');
+  document.getElementById('flight-number-input').value = '';
+  document.getElementById('flight-add-status').textContent = '';
+}
+function closeFlightModal() { document.getElementById('flight-modal').classList.remove('open'); }
+
+async function addFlight() {
+  const input = document.getElementById('flight-number-input').value.trim().toUpperCase();
+  const statusEl = document.getElementById('flight-add-status');
+  if (!input) { statusEl.textContent = 'Enter a flight number.'; return; }
+  statusEl.textContent = 'Adding…';
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/flights`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flightNumber: input, label: input }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    statusEl.textContent = 'Tracking! Positions update every 5 minutes.';
+    statusEl.style.color = 'var(--green-mark)';
+    loadFlights();
+    startFlightRefresh();
+  } catch(err) {
+    statusEl.textContent = err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+async function removeFlight(callsign) {
+  try {
+    await fetch(`${cfg.proxyUrl}/flights/${callsign}`, { method: 'DELETE' });
+    loadFlights();
+  } catch(err) {
+    alert('Failed to remove flight: ' + err.message);
+  }
+}
+
+async function loadFlights() {
+  if (!cfg.proxyUrl) return;
+  try {
+    const res = await fetch(`${cfg.proxyUrl}/flights`);
+    const data = await res.json();
+    if (Array.isArray(data)) { flights = data; renderFlights(); }
+  } catch(e) { /* silent */ }
+}
+
+function startFlightRefresh() {
+  clearInterval(flightRefreshTimer);
+  if (cfg.proxyUrl) flightRefreshTimer = setInterval(loadFlights, 5 * 60 * 1000);
+}
+
+function renderFlights() {
+  // Map markers
+  Object.values(flightMarkers).forEach(m => map.removeLayer(m));
+  flightMarkers = {};
+
+  flights.forEach(f => {
+    if (f.lat == null || f.lon == null) return;
+    const heading = f.heading || 0;
+    const isActive = activeFlightCs === f.callsign;
+    const s = isActive ? 28 : 22;
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:${s}px;height:${s}px;display:flex;align-items:center;justify-content:center;font-size:${s-4}px;transform:rotate(${heading}deg);cursor:pointer;filter:drop-shadow(0 1px 3px rgba(0,0,0,.4));" title="${esc(f.label)}">✈</div>`,
+      iconSize: [s, s], iconAnchor: [s/2, s/2],
+    });
+    const m = L.marker([f.lat, f.lon], { icon, zIndexOffset: 500 }).addTo(map);
+    m.bindPopup(flightPopupHTML(f), { maxWidth: 240 });
+    m.on('click', () => { activeFlightCs = f.callsign; renderFlightSidebar(); });
+    flightMarkers[f.callsign] = m;
+  });
+  renderFlightSidebar();
+}
+
+function flightPopupHTML(f) {
+  const status = f.onGround ? 'On ground' : f.altitude ? 'Airborne' : 'Unknown';
+  const statusColor = f.onGround ? 'var(--gold)' : 'var(--green-mark)';
+  return `<div class="flight-popup">
+    <div class="flight-popup-header">
+      <div class="flight-popup-name">${esc(f.label)}</div>
+      <div class="flight-popup-cs">Callsign: ${esc(f.callsign)}</div>
+    </div>
+    <div class="flight-popup-body">
+      <div class="flight-popup-grid">
+        <div class="flight-popup-stat"><label>Altitude</label><value>${f.altitude != null ? f.altitude.toLocaleString()+' ft' : '—'}</value></div>
+        <div class="flight-popup-stat"><label>Speed</label><value>${f.speed != null ? f.speed+' kn' : '—'}</value></div>
+        <div class="flight-popup-stat"><label>Heading</label><value>${f.heading != null ? f.heading+'°' : '—'}</value></div>
+        <div class="flight-popup-stat"><label>Vert Rate</label><value>${f.verticalRate != null ? (f.verticalRate>0?'+':'')+f.verticalRate+' ft/m' : '—'}</value></div>
+      </div>
+      <div style="margin-top:8px;font-family:'Inconsolata',monospace;font-size:10px">
+        <span style="color:${statusColor}">${status}</span>
+        ${f.landedAt ? ' · Landed' : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderFlightSidebar() {
+  const el = document.getElementById('flight-list');
+  if (!flights.length) { el.innerHTML = ''; return; }
+  el.innerHTML = flights.map(f => {
+    const airborne = f.lat != null && !f.onGround;
+    const landed = f.onGround || f.landedAt;
+    const statusText = airborne ? (f.altitude ? f.altitude.toLocaleString()+' ft · '+f.speed+'kn' : 'Airborne') : landed ? 'Landed' : f.error || 'Not airborne';
+    const statusColor = airborne ? 'var(--green-mark)' : landed ? 'var(--gold)' : 'var(--ink-faint)';
+    return `<div class="flight-item ${activeFlightCs===f.callsign?'active':''}" onclick="flyToFlight('${esc(f.callsign)}')">
+      <div class="flight-icon" ${airborne ? `style="transform:rotate(${f.heading||0}deg)"` : ''}>✈</div>
+      <div class="flight-info">
+        <div class="flight-name">${esc(f.label)}</div>
+        <div class="flight-status" style="color:${statusColor}">${statusText}</div>
+      </div>
+      <button class="flight-remove-btn" onclick="event.stopPropagation();confirmRemoveFlight('${esc(f.callsign)}',this)" title="Stop tracking">×</button>
+    </div>`;
+  }).join('');
+}
+
+function flyToFlight(callsign) {
+  activeFlightCs = callsign;
+  const f = flights.find(x => x.callsign === callsign);
+  if (!f || f.lat == null) return;
+  map.flyTo([f.lat, f.lon], Math.max(map.getZoom(), 6), { duration: 1 });
+  if (flightMarkers[callsign]) flightMarkers[callsign].openPopup();
+  renderFlightSidebar();
+}
+
+function confirmRemoveFlight(callsign, btnEl) {
+  btnEl.textContent = '?';
+  btnEl.style.opacity = '1';
+  btnEl.style.borderColor = 'var(--red)';
+  btnEl.style.background = 'rgba(176,58,46,.15)';
+  btnEl.onclick = (e) => { e.stopPropagation(); removeFlight(callsign); };
+  setTimeout(() => {
+    if (btnEl.isConnected) {
+      btnEl.textContent = '×';
+      btnEl.style.opacity = '';
+      btnEl.style.borderColor = '';
+      btnEl.style.background = '';
+      btnEl.onclick = (e) => { e.stopPropagation(); confirmRemoveFlight(callsign, btnEl); };
+    }
+  }, 3000);
+}
+
 // ── SIDEBAR RESIZE ────────────────────────────────────────────────────────────
 (function() {
   const handle = document.getElementById('sidebar-resize');
@@ -1683,7 +1946,9 @@ if (cfg.proxyUrl) {
   document.getElementById('api-status-bar').innerHTML = `Proxy: <span style="color:var(--green-mark)">Connected</span>`;
   loadVessels();
   loadPins();
+  loadFlights();
   startAutoRefresh();
+  startFlightRefresh();
 }
 </script>
 </body>
