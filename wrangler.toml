@@ -1,0 +1,7 @@
+name = "royal-fire-97b0"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "FLEET_KV"
+id = "7414a62d7caf4eda946f40232c51c2bd"
